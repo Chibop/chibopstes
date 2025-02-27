@@ -1,263 +1,465 @@
-//1112
+
+// 自动生成的XPTV扩展脚本
+
 const cheerio = createCheerio()
-const CryptoJS = createCryptoJS()
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+// 设置User Agent
+const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1'
 
+// 应用配置
 let appConfig = {
     ver: 1,
-    title: '廠長',
+    title: '自动生成站点',
     site: 'https://www.czzyvideo.com',
+    tabs: [
+        {
+                "name": "首页",
+                "ext": {
+                        "id": 0,
+                        "url": "https://www.czzyvideo.com"
+                }
+        },
+        {
+                "name": "电影",
+                "ext": {
+                        "id": 1,
+                        "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/dyy"
+                }
+        },
+        {
+                "name": "美剧",
+                "ext": {
+                        "id": 2,
+                        "url": "https://www.czzyvideo.com/meijutt"
+                }
+        },
+        {
+                "name": "日剧",
+                "ext": {
+                        "id": 3,
+                        "url": "https://www.czzyvideo.com/riju"
+                }
+        },
+        {
+                "name": "韩剧",
+                "ext": {
+                        "id": 4,
+                        "url": "https://www.czzyvideo.com/hanjutv"
+                }
+        },
+        {
+                "name": "番剧",
+                "ext": {
+                        "id": 5,
+                        "url": "https://www.czzyvideo.com/fanju"
+                }
+        },
+        {
+                "name": "电视剧",
+                "ext": {
+                        "id": 6,
+                        "url": "https://www.czzyvideo.com/dsj"
+                }
+        },
+        {
+                "name": "国产剧",
+                "ext": {
+                        "id": 7,
+                        "url": "https://www.czzyvideo.com/gcj"
+                }
+        },
+        {
+                "name": "剧场版",
+                "ext": {
+                        "id": 8,
+                        "url": "https://www.czzyvideo.com/dongmanjuchangban"
+                }
+        },
+        {
+                "name": "海外剧",
+                "ext": {
+                        "id": 9,
+                        "url": "https://www.czzyvideo.com/haiwaijuqita"
+                }
+        },
+        {
+                "name": "电影",
+                "ext": {
+                        "id": 1,
+                        "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/dyy"
+                }
+        },
+        {
+                "name": "美剧",
+                "ext": {
+                        "id": 2,
+                        "url": "https://www.czzyvideo.com/meijutt"
+                }
+        },
+        {
+                "name": "日剧",
+                "ext": {
+                        "id": 3,
+                        "url": "https://www.czzyvideo.com/riju"
+                }
+        },
+        {
+                "name": "韩剧",
+                "ext": {
+                        "id": 4,
+                        "url": "https://www.czzyvideo.com/hanjutv"
+                }
+        },
+        {
+                "name": "番剧",
+                "ext": {
+                        "id": 5,
+                        "url": "https://www.czzyvideo.com/fanju"
+                }
+        },
+        {
+                "name": "电视剧",
+                "ext": {
+                        "id": 6,
+                        "url": "https://www.czzyvideo.com/dsj"
+                }
+        },
+        {
+                "name": "国产剧",
+                "ext": {
+                        "id": 7,
+                        "url": "https://www.czzyvideo.com/gcj"
+                }
+        },
+        {
+                "name": "剧场版",
+                "ext": {
+                        "id": 8,
+                        "url": "https://www.czzyvideo.com/dongmanjuchangban"
+                }
+        },
+        {
+                "name": "海外剧",
+                "ext": {
+                        "id": 9,
+                        "url": "https://www.czzyvideo.com/haiwaijuqita"
+                }
+        },
+        {
+                "name": "高分影视",
+                "ext": {
+                        "id": 0,
+                        "url": "https://www.czzyvideo.com/gaofenyingshi"
+                }
+        },
+        {
+                "name": "华语电影",
+                "ext": {
+                        "id": 1,
+                        "url": "https://www.czzyvideo.com/huayudianying"
+                }
+        },
+        {
+                "name": "欧美电影",
+                "ext": {
+                        "id": 2,
+                        "url": "https://www.czzyvideo.com/oumeidianying"
+                }
+        },
+        {
+                "name": "韩国电影",
+                "ext": {
+                        "id": 3,
+                        "url": "https://www.czzyvideo.com/hanguodianying"
+                }
+        },
+        {
+                "name": "日本电影",
+                "ext": {
+                        "id": 4,
+                        "url": "https://www.czzyvideo.com/ribendianying"
+                }
+        },
+        {
+                "name": "印度电影",
+                "ext": {
+                        "id": 5,
+                        "url": "https://www.czzyvideo.com/yindudianying"
+                }
+        },
+        {
+                "name": "俄罗斯电影",
+                "ext": {
+                        "id": 6,
+                        "url": "https://www.czzyvideo.com/eluosidianying"
+                }
+        },
+        {
+                "name": "加拿大电影",
+                "ext": {
+                        "id": 7,
+                        "url": "https://www.czzyvideo.com/jianadadianying"
+                }
+        },
+        {
+                "name": "美剧",
+                "ext": {
+                        "id": 8,
+                        "url": "https://www.czzyvideo.com/meijutt"
+                }
+        },
+        {
+                "name": "韩剧",
+                "ext": {
+                        "id": 9,
+                        "url": "https://www.czzyvideo.com/hanjutv"
+                }
+        },
+        {
+                "name": "日剧",
+                "ext": {
+                        "id": 10,
+                        "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/rj"
+                }
+        },
+        {
+                "name": "海外剧",
+                "ext": {
+                        "id": 11,
+                        "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/hwj"
+                }
+        },
+        {
+                "name": "高分影视",
+                "ext": {
+                        "id": 0,
+                        "url": "https://www.czzyvideo.com/gaofenyingshi"
+                }
+        },
+        {
+                "name": "华语电影",
+                "ext": {
+                        "id": 1,
+                        "url": "https://www.czzyvideo.com/huayudianying"
+                }
+        },
+        {
+                "name": "欧美电影",
+                "ext": {
+                        "id": 2,
+                        "url": "https://www.czzyvideo.com/oumeidianying"
+                }
+        },
+        {
+                "name": "韩国电影",
+                "ext": {
+                        "id": 3,
+                        "url": "https://www.czzyvideo.com/hanguodianying"
+                }
+        },
+        {
+                "name": "日本电影",
+                "ext": {
+                        "id": 4,
+                        "url": "https://www.czzyvideo.com/ribendianying"
+                }
+        },
+        {
+                "name": "印度电影",
+                "ext": {
+                        "id": 5,
+                        "url": "https://www.czzyvideo.com/yindudianying"
+                }
+        },
+        {
+                "name": "俄罗斯电影",
+                "ext": {
+                        "id": 6,
+                        "url": "https://www.czzyvideo.com/eluosidianying"
+                }
+        },
+        {
+                "name": "加拿大电影",
+                "ext": {
+                        "id": 7,
+                        "url": "https://www.czzyvideo.com/jianadadianying"
+                }
+        },
+        {
+                "name": "美剧",
+                "ext": {
+                        "id": 8,
+                        "url": "https://www.czzyvideo.com/meijutt"
+                }
+        },
+        {
+                "name": "韩剧",
+                "ext": {
+                        "id": 9,
+                        "url": "https://www.czzyvideo.com/hanjutv"
+                }
+        },
+        {
+                "name": "日剧",
+                "ext": {
+                        "id": 10,
+                        "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/rj"
+                }
+        },
+        {
+                "name": "海外剧",
+                "ext": {
+                        "id": 11,
+                        "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/hwj"
+                }
+        }
+],
 }
 
+// 获取配置信息
 async function getConfig() {
-    let config = appConfig
-    config.tabs = await getTabs()
-    return jsonify(config)
+    return JSON.stringify(appConfig)
 }
 
-async function getTabs() {
-    let list = []
-    let ignore = ['关于', '公告', '官方', '备用', '群', '地址', '求片']
-    function isIgnoreClassName(className) {
-        return ignore.some((element) => className.includes(element))
-    }
-
-    const { data } = await $fetch.get(appConfig.site, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-    const $ = cheerio.load(data)
-
-    let allClass = $('ul.submenu_mi > li > a')
-    allClass.each((i, e) => {
-        const name = $(e).text()
-        const href = $(e).attr('href')
-        const isIgnore = isIgnoreClassName(name)
-        if (isIgnore) return
-
-        list.push({
-            name,
-            ext: {
-                url: appConfig.site + href,
-            },
-        })
-    })
-
-    return list
-}
-
+// 获取视频卡片列表
 async function getCards(ext) {
-    ext = argsify(ext)
-    let cards = []
-    let { page = 1, url } = ext
-
-    if (page > 1) {
-        url += `/page/${page}`
-    }
-
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-
-    const $ = cheerio.load(data)
-
-    $('.bt_img.mi_ne_kd.mrb ul > li').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('img').attr('alt')
-        const cover = $(element).find('img').attr('data-original')
-        const subTitle = $(element).find('.jidi span').text()
-        const hdinfo = $(element).find('.hdinfo span').text()
-        cards.push({
-            vod_id: href,
-            vod_name: title,
-            vod_pic: cover,
-            vod_remarks: subTitle || hdinfo,
-            ext: {
-                url: href,
+    try {
+        ext = JSON.parse(ext)
+        let cards = []
+        
+        const {data} = await axios.get(ext.url, {
+            headers: {
+                'User-Agent': UA,
             },
         })
-    })
+        
+        const $ = cheerio.load(data)
+        $('.bt_img li').each((_, element) => {
+            const $el = $(element)
+            const href = $el.find('.bt_img li a').attr('href')
+            const title = $el.find('.bt_img li h3.dytit').text().trim()
+            const cover = $el.find('img[data-src]').attr('data-src') || $el.find('img[data-src]').attr('data-original') || $el.find('img[data-src]').attr('src')
+            
+            if (href && title) {
+                cards.push({
+                    vod_id: href,
+                    vod_name: title,
+                    vod_pic: cover,
+                    vod_remarks: '',
+                    ext: {
+                        url: href.startsWith('http') ? href : `${appConfig.site}${href}`,
+                    },
+                })
+            }
+        })
 
-    return jsonify({
-        list: cards,
-    })
+        return JSON.stringify({
+            list: cards,
+        })
+    } catch (error) {
+        console.log('getCards error:', error)
+        return JSON.stringify({
+            list: [],
+        })
+    }
 }
 
+// 获取视频播放列表
 async function getTracks(ext) {
-    ext = argsify(ext)
-    let tracks = []
-    let url = ext.url
-
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-
-    const $ = cheerio.load(data)
-
-    $('.paly_list_btn a').each((_, e) => {
-        const name = $(e).text()
-        const href = $(e).attr('href')
-        tracks.push({
-            name: `${name}`,
-            pan: '',
-            ext: {
-                url: href,
+    try {
+        ext = JSON.parse(ext)
+        let tracks = []
+        
+        const {data} = await axios.get(ext.url, {
+            headers: {
+                'User-Agent': UA,
             },
         })
-    })
-
-    const panlist = $('.ypbt_down_list')
-    if (panlist) {
-        panlist.find('ul li').each((_, e) => {
-            const name = $(e).find('a').text().trim()
-            const href = $(e).find('a').attr('href')
-            if (!/ali|quark|115|uc/.test(href)) return
-            tracks.push({
-                name: name,
-                pan: href,
-            })
+        
+        const $ = cheerio.load(data)
+        
+        $('a[href*="play"], a[href*="video"]').each((_, element) => {
+            const $el = $(element)
+            const url = $el.attr('href')
+            const name = $el.text().trim()
+            
+            if (url && name) {
+                tracks.push({
+                    name: name,
+                    pan: '',
+                    ext: {
+                        url: url.startsWith('http') ? url : `${appConfig.site}${url}`,
+                    },
+                })
+            }
         })
-    }
 
-    // $utils.toastInfo('不能看的在群裡回報')
-
-    return jsonify({
-        list: [
-            {
+        return JSON.stringify({
+            list: [{
                 title: '默认分组',
                 tracks,
-            },
-        ],
-    })
-}
-
-async function getPlayinfo(ext) {
-    ext = argsify(ext)
-    const url = ext.url
-
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-    let playurl
-
-    try {
-        const $ = cheerio.load(data)
-
-        // 1
-        const jsurl = $('iframe').attr('src')
-        if (jsurl) {
-            let headers = {
-                'user-agent': UA,
-            }
-            if (jsurl.includes('player-v2')) {
-                headers['sec-fetch-dest'] = 'iframe'
-                headers['sec-fetch-mode'] = 'navigate'
-                headers['referer'] = `${appConfig.site}/`
-            }
-
-            const jsres = await $fetch.get(jsurl, { headers: headers })
-            const $2 = cheerio.load(jsres.data)
-            const scripts = $2('script')
-            if (scripts.length - 2 > 0) {
-                let code = scripts.eq(scripts.length - 2).text()
-
-                if (code.includes('var player')) {
-                    let player = code.match(/var player = "(.*?)"/)
-                    let rand = code.match(/var rand = "(.*?)"/)
-
-                    function decrypt(text, key, iv, type) {
-                        let key_value = CryptoJS.enc.Utf8.parse(key || 'PBfAUnTdMjNDe6pL')
-                        let iv_value = CryptoJS.enc.Utf8.parse(iv || 'sENS6bVbwSfvnXrj')
-                        let content
-                        if (type) {
-                            content = CryptoJS.AES.encrypt(text, key_value, {
-                                iv: iv_value,
-                                mode: CryptoJS.mode.CBC,
-                                padding: CryptoJS.pad.Pkcs7,
-                            })
-                        } else {
-                            content = CryptoJS.AES.decrypt(text, key_value, {
-                                iv: iv_value,
-                                padding: CryptoJS.pad.Pkcs7,
-                            }).toString(CryptoJS.enc.Utf8)
-                        }
-                        return content
-                    }
-
-                    let content = JSON.parse(decrypt(player[1], 'VFBTzdujpR9FWBhe', rand[1]))
-                    $print(JSON.stringify(content))
-                    playurl = content.url
-                } else {
-                    let data = code.split('"data":"')[1].split('"')[0]
-                    let encrypted = data.split('').reverse().join('')
-                    let temp = ''
-                    for (let i = 0x0; i < encrypted.length; i = i + 0x2) {
-                        temp += String.fromCharCode(parseInt(encrypted[i] + encrypted[i + 0x1], 0x10))
-                    }
-                    playurl = temp.substring(0x0, (temp.length - 0x7) / 0x2) + temp.substring((temp.length - 0x7) / 0x2 + 0x7)
-                }
-            }
-        } else {
-            // 2
-            const script = $('script:contains(window.wp_nonce)')
-            if (script.length > 0) {
-                let code = script.eq(0).text()
-                let group = code.match(/(var.*)eval\((\w*\(\w*\))\)/)
-                const md5 = CryptoJS
-                const result = eval(group[1] + group[2])
-                playurl = result.match(/url:.*?['"](.*?)['"]/)[1]
-            }
-        }
+            }],
+        })
     } catch (error) {
-        $print(error)
+        console.log('getTracks error:', error)
+        return JSON.stringify({
+            list: [],
+        })
     }
-
-    return jsonify({ urls: [playurl], headers: [{ 'User-Agent': UA }] })
 }
 
-async function search(ext) {
-    ext = argsify(ext)
-    let cards = []
-
-    let text = encodeURIComponent(ext.text)
-    let page = ext.page || 1
-    let url = `${appConfig.site}/daoyongjiek0shibushiyoubing?q=${text}$f=_all&p=${page}`
-
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-
-    const $ = cheerio.load(data)
-
-    $('div.bt_img > ul li').each((_, element) => {
-        const href = $(element).find('a').attr('href')
-        const title = $(element).find('img.thumb').attr('alt')
-        const cover = $(element).find('img.thumb').attr('data-original')
-        const subTitle = $(element).find('.jidi span').text()
-        const hdinfo = $(element).find('.hdinfo .qb').text()
-        cards.push({
-            vod_id: href,
-            vod_name: title,
-            vod_pic: cover,
-            vod_remarks: subTitle || hdinfo,
-            url: href,
-            ext: {
-                url: href,
+// 获取播放信息
+async function getPlayinfo(ext) {
+    try {
+        ext = JSON.parse(ext)
+        
+        const {data} = await axios.get(ext.url, {
+            headers: {
+                'User-Agent': UA,
             },
         })
-    })
-
-    return jsonify({
-        list: cards,
-    })
+        
+        const $ = cheerio.load(data)
+        
+        let videoUrl = ''
+        $('iframe, video source').each((_, element) => {
+            const src = $(element).attr('src')
+            if (src) {
+                videoUrl = src.startsWith('http') ? src : `${appConfig.site}${src}`
+                return false
+            }
+        })
+        
+        // 如果没有找到直接的视频源，尝试获取iframe内容
+        if (!videoUrl && $('iframe').length > 0) {
+            const jsurl = $('iframe').attr('src')
+            if (jsurl) {
+                try {
+                    const jsres = await axios.get(jsurl.startsWith('http') ? jsurl : `${appConfig.site}${jsurl}`, {
+                        headers: {
+                            'User-Agent': UA,
+                            'Referer': ext.url
+                        },
+                    })
+                    
+                    const $2 = cheerio.load(jsres.data)
+                    const videoSrc = $2('video source').attr('src') || $2('iframe').attr('src')
+                    if (videoSrc) {
+                        videoUrl = videoSrc.startsWith('http') ? videoSrc : `${jsurl.split('/').slice(0, 3).join('/')}${videoSrc}`
+                    }
+                } catch (err) {
+                    console.log('获取iframe内容失败:', err)
+                }
+            }
+        }
+        
+        return JSON.stringify({
+            url: videoUrl,
+        })
+    } catch (error) {
+        console.log('getPlayinfo error:', error)
+        return JSON.stringify({
+            url: '',
+        })
+    }
 }
