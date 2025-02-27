@@ -10,13 +10,13 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/6
 let appConfig = {
     ver: 1,
     title: '自动生成站点',
-    site: 'https://www.dqsj.top/index.php/vod/show/id/21.html',
+    site: 'https://www.czzyvideo.com',
     tabs: [
         {
             name: '首页',
             ext: {
                 id: 0,
-                url: 'https://www.dqsj.top/index.php/vod/show/id/21.html',
+                url: 'https://www.czzyvideo.com',
             },
         },
     ],
@@ -40,10 +40,10 @@ async function getCards(ext) {
         })
         
         const $ = cheerio.load(data)
-        $('.gen-left-list.margin').each((_, element) => {
+        $('.menu-item.menu-item-type-custom.menu-item-object-custom.current-menu-item.current_page_item.menu-item-33').each((_, element) => {
             const $el = $(element)
-            const href = $el.find('.button.top30.cr8').attr('href')
-            const title = $el.find('.vod-no-style').text().trim()
+            const href = $el.find('a').attr('href')
+            const title = $el.find('.jidi').text().trim()
             const cover = $el.find('img').attr('src')
             
             if (href && title) {
