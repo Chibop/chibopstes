@@ -6,8 +6,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '网页格式化',
-    site: 'https://example.com',
+    title: '网页',
+    site: 'https://123av.com/zh/dm4',
 }
 
 async function getConfig() {
