@@ -1,4 +1,4 @@
-// ==UserScript==
+// ==UserScript==1
 // @name         XPTV扩展 - 厂长资源 – 厂长影视官网 | 超清视频站
 // @namespace    http://tampermonkey.net/
 // @version      1.0
