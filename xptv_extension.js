@@ -1,4 +1,3 @@
-//1121
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
 
@@ -6,8 +5,8 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '网页',
-    site: 'https://123av.com/zh/dm4',
+    title: '网页格式化',
+    site: 'https://123av.com',
 }
 
 async function getConfig() {
@@ -24,7 +23,7 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    const { data } = await $fetch.get(appConfig.site, {
+    const { data } = await $fetch.get(appConfig.site + '/zh/dm4', {
         headers: {
             'User-Agent': UA,
         },
@@ -32,7 +31,7 @@ async function getTabs() {
     const $ = cheerio.load(data)
 
     // 解析导航标签
-    $('.nav-menu li').each((_, element) => {
+    $('.nav-item').each((_, element) => {
         const name = $(element).find('a').text().trim()
         const href = $(element).find('a').attr('href')
         
@@ -56,7 +55,7 @@ async function getCards(ext) {
 
     // 处理分页
     if (page > 1) {
-        url = url.replace(/\.html$/, '') + `/page/${page}.html`
+        url = url.replace(/\/zh\/dm4$/, '') + `/zh/dm4?page=${page}`
     }
 
     const { data } = await $fetch.get(url, {
@@ -67,76 +66,26 @@ async function getCards(ext) {
 
     const $ = cheerio.load(data)
 
-    // 定义多个选择器，按常见程度排序
-    const selectors = [
-        '.module-item',                    // 常见模板
-        '.video-list .video-item',         // 视频列表
-        '.bt_img li',                      // BT下载
-        '.movie-list .movie-item',         // 电影列表
-        '.stui-vodlist__box',             // STUI模板
-        '.myui-vodlist__box',             // MYUI模板
-        '.fed-list-item',                 // FED模板
-        '.vodlist_item',                  // 通用列表项
-        '.hl-list-item',                  // 海螺模板
-        '.pack-ykpack',                   // 通用模板
-        '.mo-main-info',                  // 影视模板
-        '.public-list-box'                // 公共列表
-    ]
+    // 解析视频列表
+    $('.video-item').each((_, element) => {
+        const $element = $(element)
+        const href = $element.find('a').attr('href')
+        const title = $element.find('.video-title').text().trim()
+        const cover = $element.find('img').attr('src')
+        const subTitle = $element.find('.video-duration').text().trim()
 
-    // 遍历选择器直到找到匹配的元素
-    for (const selector of selectors) {
-        const elements = $(selector)
-        if (elements.length > 0) {
-            elements.each((_, element) => {
-                const $element = $(element)
-                // 获取链接，支持多种选择器
-                const href = $element.find('a').attr('href') || 
-                            $element.find('.video-link').attr('href') || 
-                            $element.find('[href]').attr('href')
-
-                // 获取标题，支持多种选择器和属性
-                const title = $element.find('.title').text().trim() || 
-                             $element.find('.video-title').text().trim() || 
-                             $element.find('.module-item-title').text().trim() ||
-                             $element.find('.name').text().trim() ||
-                             $element.find('h3').text().trim() ||
-                             $element.find('a').attr('title') ||
-                             $element.find('[title]').attr('title')
-
-                // 获取封面图，支持多种属性
-                const img = $element.find('img')
-                const cover = img.attr('data-src') || 
-                             img.attr('data-original') || 
-                             img.attr('data-thumb') ||
-                             img.attr('data-url') ||
-                             img.attr('data-image') ||
-                             img.attr('src')
-
-                // 获取副标题，支持多种选择器
-                const subTitle = $element.find('.video-info').text().trim() || 
-                                $element.find('.module-item-text').text().trim() ||
-                                $element.find('.pic-text').text().trim() ||
-                                $element.find('.note').text().trim() ||
-                                $element.find('.remarks').text().trim()
-
-                // 调试信息
-                $print(`解析到视频项：${title || '无标题'} - ${href || '无链接'}`)
-
-                if (href && title) {
-                    cards.push({
-                        vod_id: href,
-                        vod_name: title,
-                        vod_pic: cover,
-                        vod_remarks: subTitle,
-                        ext: {
-                            url: href.startsWith('http') ? href : appConfig.site + href,
-                        },
-                    })
-                }
+        if (href && title) {
+            cards.push({
+                vod_id: href,
+                vod_name: title,
+                vod_pic: cover,
+                vod_remarks: subTitle,
+                ext: {
+                    url: href.startsWith('http') ? href : appConfig.site + href,
+                },
             })
-            break
         }
-    }
+    })
 
     return jsonify({
         list: cards,
@@ -156,36 +105,22 @@ async function getTracks(ext) {
 
     const $ = cheerio.load(data)
 
-    // 定义多个选择器
-    const selectors = [
-        '.play-list .play-item',
-        '.module-play-list a',
-        '.playlist li a',
-        'a[href*="play"]'
-    ]
-
-    // 遍历选择器直到找到匹配的元素
-    for (const selector of selectors) {
-        const elements = $(selector)
-        if (elements.length > 0) {
-            elements.each((_, element) => {
-                const $element = $(element)
-                const name = $element.find('.play-name').text().trim() || $element.text().trim()
-                const href = $element.find('.play-link').attr('href') || $element.attr('href')
-                
-                if (href && name) {
-                    tracks.push({
-                        name: name,
-                        pan: '',
-                        ext: {
-                            url: href.startsWith('http') ? href : appConfig.site + href,
-                        },
-                    })
-                }
+    // 解析播放列表
+    $('.video-episodes a').each((_, element) => {
+        const $element = $(element)
+        const name = $element.text().trim()
+        const href = $element.attr('href')
+        
+        if (href && name) {
+            tracks.push({
+                name: name,
+                pan: '',
+                ext: {
+                    url: href.startsWith('http') ? href : appConfig.site + href,
+                },
             })
-            break
         }
-    }
+    })
 
     return jsonify({
         list: [{
@@ -209,26 +144,13 @@ async function getPlayinfo(ext) {
     let playUrl
 
     try {
-        // 定义多个选择器
-        const selectors = [
-            '#video-player source',
-            '.module-player-box iframe',
-            'video source',
-            'iframe'
-        ]
-
-        // 遍历选择器直到找到匹配的元素
-        for (const selector of selectors) {
-            const element = $(selector)
-            if (element.length > 0) {
-                playUrl = element.attr('src')
-                if (playUrl) {
-                    break
-                }
-            }
+        // 获取视频源
+        const videoElement = $('#video-player source')
+        if (videoElement.length > 0) {
+            playUrl = videoElement.attr('src')
         }
 
-        // 如果还是没找到，尝试从script中提取
+        // 如果没找到视频源，尝试从script中提取
         if (!playUrl) {
             const scriptContent = $('script:contains("player")').text()
             const match = scriptContent.match(/url:\s*['"](.*?)['"]/) || 
@@ -259,7 +181,7 @@ async function search(ext) {
 
     const text = encodeURIComponent(ext.text)
     const page = ext.page || 1
-    const url = `${appConfig.site}/search?keyword=${text}&page=${page}`
+    const url = `${appConfig.site}/zh/search?q=${text}&page=${page}`
 
     const { data } = await $fetch.get(url, {
         headers: {
@@ -270,22 +192,24 @@ async function search(ext) {
     const $ = cheerio.load(data)
 
     // 解析搜索结果
-    $('.search-list .video-item').each((_, element) => {
-        const href = $(element).find('.video-link').attr('href')
-        const title = $(element).find('.video-title').text().trim()
-        const cover = $(element).find('.video-cover').attr('data-src') || 
-                     $(element).find('.video-cover').attr('src')
-        const subTitle = $(element).find('.video-info').text().trim()
+    $('.video-item').each((_, element) => {
+        const $element = $(element)
+        const href = $element.find('a').attr('href')
+        const title = $element.find('.video-title').text().trim()
+        const cover = $element.find('img').attr('src')
+        const subTitle = $element.find('.video-duration').text().trim()
 
-        cards.push({
-            vod_id: href,
-            vod_name: title,
-            vod_pic: cover,
-            vod_remarks: subTitle,
-            ext: {
-                url: href.startsWith('http') ? href : appConfig.site + href,
-            },
-        })
+        if (href && title) {
+            cards.push({
+                vod_id: href,
+                vod_name: title,
+                vod_pic: cover,
+                vod_remarks: subTitle,
+                ext: {
+                    url: href.startsWith('http') ? href : appConfig.site + href,
+                },
+            })
+        }
     })
 
     return jsonify({
