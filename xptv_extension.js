@@ -1,4 +1,4 @@
-//23
+//112
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
 
@@ -67,12 +67,20 @@ async function getCards(ext) {
 
     const $ = cheerio.load(data)
 
-    // 定义多个选择器
+    // 定义多个选择器，按常见程度排序
     const selectors = [
-        '.video-list .video-item',
-        '.module-item',
-        '.bt_img li',
-        '.movie-list .movie-item'
+        '.module-item',                    // 常见模板
+        '.video-list .video-item',         // 视频列表
+        '.bt_img li',                      // BT下载
+        '.movie-list .movie-item',         // 电影列表
+        '.stui-vodlist__box',             // STUI模板
+        '.myui-vodlist__box',             // MYUI模板
+        '.fed-list-item',                 // FED模板
+        '.vodlist_item',                  // 通用列表项
+        '.hl-list-item',                  // 海螺模板
+        '.pack-ykpack',                   // 通用模板
+        '.mo-main-info',                  // 影视模板
+        '.public-list-box'                // 公共列表
     ]
 
     // 遍历选择器直到找到匹配的元素
@@ -81,16 +89,38 @@ async function getCards(ext) {
         if (elements.length > 0) {
             elements.each((_, element) => {
                 const $element = $(element)
-                const href = $element.find('a').attr('href') || $element.find('.video-link').attr('href')
+                // 获取链接，支持多种选择器
+                const href = $element.find('a').attr('href') || 
+                            $element.find('.video-link').attr('href') || 
+                            $element.find('[href]').attr('href')
+
+                // 获取标题，支持多种选择器和属性
                 const title = $element.find('.title').text().trim() || 
                              $element.find('.video-title').text().trim() || 
-                             $element.find('.module-item-title').text().trim()
+                             $element.find('.module-item-title').text().trim() ||
+                             $element.find('.name').text().trim() ||
+                             $element.find('h3').text().trim() ||
+                             $element.find('a').attr('title') ||
+                             $element.find('[title]').attr('title')
+
+                // 获取封面图，支持多种属性
                 const img = $element.find('img')
                 const cover = img.attr('data-src') || 
                              img.attr('data-original') || 
+                             img.attr('data-thumb') ||
+                             img.attr('data-url') ||
+                             img.attr('data-image') ||
                              img.attr('src')
+
+                // 获取副标题，支持多种选择器
                 const subTitle = $element.find('.video-info').text().trim() || 
-                                $element.find('.module-item-text').text().trim()
+                                $element.find('.module-item-text').text().trim() ||
+                                $element.find('.pic-text').text().trim() ||
+                                $element.find('.note').text().trim() ||
+                                $element.find('.remarks').text().trim()
+
+                // 调试信息
+                $print(`解析到视频项：${title || '无标题'} - ${href || '无链接'}`)
 
                 if (href && title) {
                     cards.push({
