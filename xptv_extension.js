@@ -1,3 +1,4 @@
+//23
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
 
@@ -66,24 +67,46 @@ async function getCards(ext) {
 
     const $ = cheerio.load(data)
 
-    // 解析视频列表
-    $('.video-list .video-item').each((_, element) => {
-        const href = $(element).find('.video-link').attr('href')
-        const title = $(element).find('.video-title').text().trim()
-        const cover = $(element).find('.video-cover').attr('data-src') || 
-                     $(element).find('.video-cover').attr('src')
-        const subTitle = $(element).find('.video-info').text().trim()
+    // 定义多个选择器
+    const selectors = [
+        '.video-list .video-item',
+        '.module-item',
+        '.bt_img li',
+        '.movie-list .movie-item'
+    ]
 
-        cards.push({
-            vod_id: href,
-            vod_name: title,
-            vod_pic: cover,
-            vod_remarks: subTitle,
-            ext: {
-                url: href.startsWith('http') ? href : appConfig.site + href,
-            },
-        })
-    })
+    // 遍历选择器直到找到匹配的元素
+    for (const selector of selectors) {
+        const elements = $(selector)
+        if (elements.length > 0) {
+            elements.each((_, element) => {
+                const $element = $(element)
+                const href = $element.find('a').attr('href') || $element.find('.video-link').attr('href')
+                const title = $element.find('.title').text().trim() || 
+                             $element.find('.video-title').text().trim() || 
+                             $element.find('.module-item-title').text().trim()
+                const img = $element.find('img')
+                const cover = img.attr('data-src') || 
+                             img.attr('data-original') || 
+                             img.attr('src')
+                const subTitle = $element.find('.video-info').text().trim() || 
+                                $element.find('.module-item-text').text().trim()
+
+                if (href && title) {
+                    cards.push({
+                        vod_id: href,
+                        vod_name: title,
+                        vod_pic: cover,
+                        vod_remarks: subTitle,
+                        ext: {
+                            url: href.startsWith('http') ? href : appConfig.site + href,
+                        },
+                    })
+                }
+            })
+            break
+        }
+    }
 
     return jsonify({
         list: cards,
@@ -103,19 +126,36 @@ async function getTracks(ext) {
 
     const $ = cheerio.load(data)
 
-    // 解析播放列表
-    $('.play-list .play-item').each((_, element) => {
-        const name = $(element).find('.play-name').text().trim()
-        const href = $(element).find('.play-link').attr('href')
-        
-        tracks.push({
-            name: name,
-            pan: '',
-            ext: {
-                url: href.startsWith('http') ? href : appConfig.site + href,
-            },
-        })
-    })
+    // 定义多个选择器
+    const selectors = [
+        '.play-list .play-item',
+        '.module-play-list a',
+        '.playlist li a',
+        'a[href*="play"]'
+    ]
+
+    // 遍历选择器直到找到匹配的元素
+    for (const selector of selectors) {
+        const elements = $(selector)
+        if (elements.length > 0) {
+            elements.each((_, element) => {
+                const $element = $(element)
+                const name = $element.find('.play-name').text().trim() || $element.text().trim()
+                const href = $element.find('.play-link').attr('href') || $element.attr('href')
+                
+                if (href && name) {
+                    tracks.push({
+                        name: name,
+                        pan: '',
+                        ext: {
+                            url: href.startsWith('http') ? href : appConfig.site + href,
+                        },
+                    })
+                }
+            })
+            break
+        }
+    }
 
     return jsonify({
         list: [{
@@ -139,17 +179,39 @@ async function getPlayinfo(ext) {
     let playUrl
 
     try {
-        // 尝试从页面中提取播放地址
-        const videoElement = $('#video-player source')
-        if (videoElement.length > 0) {
-            playUrl = videoElement.attr('src')
-        } else {
-            // 尝试从script标签中提取
+        // 定义多个选择器
+        const selectors = [
+            '#video-player source',
+            '.module-player-box iframe',
+            'video source',
+            'iframe'
+        ]
+
+        // 遍历选择器直到找到匹配的元素
+        for (const selector of selectors) {
+            const element = $(selector)
+            if (element.length > 0) {
+                playUrl = element.attr('src')
+                if (playUrl) {
+                    break
+                }
+            }
+        }
+
+        // 如果还是没找到，尝试从script中提取
+        if (!playUrl) {
             const scriptContent = $('script:contains("player")').text()
-            const match = scriptContent.match(/url:\s*['"]([^'"]+)/)
+            const match = scriptContent.match(/url:\s*['"](.*?)['"]/) || 
+                         scriptContent.match(/src:\s*['"](.*?)['"]/) ||
+                         scriptContent.match(/source:\s*['"](.*?)['"]/) 
             if (match) {
                 playUrl = match[1]
             }
+        }
+
+        // 处理相对URL
+        if (playUrl && !playUrl.startsWith('http')) {
+            playUrl = new URL(playUrl, appConfig.site).href
         }
     } catch (error) {
         $print(error)
