@@ -11,6 +11,15 @@
 (function() {
     'use strict';
     
+    // 工具函数
+    function argsify(data) {
+        return typeof data === 'string' ? JSON.parse(data) : data;
+    }
+    
+    function jsonify(data) {
+        return JSON.stringify(data);
+    }
+    
     class JSEnvironment {
         constructor() {
             this.cheerio = createCheerio();
@@ -21,379 +30,379 @@
     "site": "https://www.czzyvideo.com",
     "tabs": [
         {
-            "title": "关于本站-公告",
+            "name": "关于本站-公告",
             "ext": {
                 "url": "https://www.czzyvideo.com/gonggao"
             }
         },
         {
-            "title": "电影",
+            "name": "电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/dyy"
             }
         },
         {
-            "title": "美剧",
+            "name": "美剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/meijutt"
             }
         },
         {
-            "title": "日剧",
+            "name": "日剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/riju"
             }
         },
         {
-            "title": "韩剧",
+            "name": "韩剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanjutv"
             }
         },
         {
-            "title": "番剧",
+            "name": "番剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/fanju"
             }
         },
         {
-            "title": "电视剧",
+            "name": "电视剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/dsj"
             }
         },
         {
-            "title": "国产剧",
+            "name": "国产剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/gcj"
             }
         },
         {
-            "title": "剧场版",
+            "name": "剧场版",
             "ext": {
                 "url": "https://www.czzyvideo.com/dongmanjuchangban"
             }
         },
         {
-            "title": "海外剧",
+            "name": "海外剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/haiwaijuqita"
             }
         },
         {
-            "title": "求片须知",
+            "name": "求片须知",
             "ext": {
                 "url": "https://www.czzyvideo.com/wangzhanliuyan"
             }
         },
         {
-            "title": "厂长资源备用地址：www.czzy.site 欢迎大家分享给身边朋友！为确保正常观看，请使用谷歌浏览器。",
+            "name": "厂长资源备用地址：www.czzy.site 欢迎大家分享给身边朋友！为确保正常观看，请使用谷歌浏览器。",
             "ext": {
                 "url": "https://www.czzy.site/"
             }
         },
         {
-            "title": "Telegram 官方群：点此加入（需魔法）",
+            "name": "Telegram 官方群：点此加入（需魔法）",
             "ext": {
                 "url": "https://t.me/+jY1P9DyaMNozN2M1"
             }
         },
         {
-            "title": "关于本站-公告",
+            "name": "关于本站-公告",
             "ext": {
                 "url": "https://www.czzyvideo.com/gonggao"
             }
         },
         {
-            "title": "电影",
+            "name": "电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/dyy"
             }
         },
         {
-            "title": "美剧",
+            "name": "美剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/meijutt"
             }
         },
         {
-            "title": "日剧",
+            "name": "日剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/riju"
             }
         },
         {
-            "title": "韩剧",
+            "name": "韩剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanjutv"
             }
         },
         {
-            "title": "番剧",
+            "name": "番剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/fanju"
             }
         },
         {
-            "title": "电视剧",
+            "name": "电视剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/dsj"
             }
         },
         {
-            "title": "国产剧",
+            "name": "国产剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/gcj"
             }
         },
         {
-            "title": "剧场版",
+            "name": "剧场版",
             "ext": {
                 "url": "https://www.czzyvideo.com/dongmanjuchangban"
             }
         },
         {
-            "title": "海外剧",
+            "name": "海外剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/haiwaijuqita"
             }
         },
         {
-            "title": "求片须知",
+            "name": "求片须知",
             "ext": {
                 "url": "https://www.czzyvideo.com/wangzhanliuyan"
             }
         },
         {
-            "title": "厂长资源备用地址：www.czzy.site 欢迎大家分享给身边朋友！为确保正常观看，请使用谷歌浏览器。",
+            "name": "厂长资源备用地址：www.czzy.site 欢迎大家分享给身边朋友！为确保正常观看，请使用谷歌浏览器。",
             "ext": {
                 "url": "https://www.czzy.site/"
             }
         },
         {
-            "title": "Telegram 官方群：点此加入（需魔法）",
+            "name": "Telegram 官方群：点此加入（需魔法）",
             "ext": {
                 "url": "https://t.me/+jY1P9DyaMNozN2M1"
             }
         },
         {
-            "title": "关于本站-公告",
+            "name": "关于本站-公告",
             "ext": {
                 "url": "https://www.czzyvideo.com/gonggao"
             }
         },
         {
-            "title": "电影",
+            "name": "电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/dyy"
             }
         },
         {
-            "title": "美剧",
+            "name": "美剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/meijutt"
             }
         },
         {
-            "title": "日剧",
+            "name": "日剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/riju"
             }
         },
         {
-            "title": "韩剧",
+            "name": "韩剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanjutv"
             }
         },
         {
-            "title": "番剧",
+            "name": "番剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/fanju"
             }
         },
         {
-            "title": "电视剧",
+            "name": "电视剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/dsj"
             }
         },
         {
-            "title": "国产剧",
+            "name": "国产剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/gcj"
             }
         },
         {
-            "title": "剧场版",
+            "name": "剧场版",
             "ext": {
                 "url": "https://www.czzyvideo.com/dongmanjuchangban"
             }
         },
         {
-            "title": "海外剧",
+            "name": "海外剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/haiwaijuqita"
             }
         },
         {
-            "title": "求片须知",
+            "name": "求片须知",
             "ext": {
                 "url": "https://www.czzyvideo.com/wangzhanliuyan"
             }
         },
         {
-            "title": "厂长资源备用地址：www.czzy.site 欢迎大家分享给身边朋友！为确保正常观看，请使用谷歌浏览器。",
+            "name": "厂长资源备用地址：www.czzy.site 欢迎大家分享给身边朋友！为确保正常观看，请使用谷歌浏览器。",
             "ext": {
                 "url": "https://www.czzy.site/"
             }
         },
         {
-            "title": "Telegram 官方群：点此加入（需魔法）",
+            "name": "Telegram 官方群：点此加入（需魔法）",
             "ext": {
                 "url": "https://t.me/+jY1P9DyaMNozN2M1"
             }
         },
         {
-            "title": "高分影视",
+            "name": "高分影视",
             "ext": {
                 "url": "https://www.czzyvideo.com/gaofenyingshi"
             }
         },
         {
-            "title": "华语电影",
+            "name": "华语电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/huayudianying"
             }
         },
         {
-            "title": "欧美电影",
+            "name": "欧美电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/oumeidianying"
             }
         },
         {
-            "title": "韩国电影",
+            "name": "韩国电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanguodianying"
             }
         },
         {
-            "title": "日本电影",
+            "name": "日本电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/ribendianying"
             }
         },
         {
-            "title": "印度电影",
+            "name": "印度电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/yindudianying"
             }
         },
         {
-            "title": "俄罗斯电影",
+            "name": "俄罗斯电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/eluosidianying"
             }
         },
         {
-            "title": "加拿大电影",
+            "name": "加拿大电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/jianadadianying"
             }
         },
         {
-            "title": "美剧",
+            "name": "美剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/meijutt"
             }
         },
         {
-            "title": "韩剧",
+            "name": "韩剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanjutv"
             }
         },
         {
-            "title": "日剧",
+            "name": "日剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/rj"
             }
         },
         {
-            "title": "海外剧",
+            "name": "海外剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/hwj"
             }
         },
         {
-            "title": "高分影视",
+            "name": "高分影视",
             "ext": {
                 "url": "https://www.czzyvideo.com/gaofenyingshi"
             }
         },
         {
-            "title": "华语电影",
+            "name": "华语电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/huayudianying"
             }
         },
         {
-            "title": "欧美电影",
+            "name": "欧美电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/oumeidianying"
             }
         },
         {
-            "title": "韩国电影",
+            "name": "韩国电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanguodianying"
             }
         },
         {
-            "title": "日本电影",
+            "name": "日本电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/ribendianying"
             }
         },
         {
-            "title": "印度电影",
+            "name": "印度电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/yindudianying"
             }
         },
         {
-            "title": "俄罗斯电影",
+            "name": "俄罗斯电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/eluosidianying"
             }
         },
         {
-            "title": "加拿大电影",
+            "name": "加拿大电影",
             "ext": {
                 "url": "https://www.czzyvideo.com/jianadadianying"
             }
         },
         {
-            "title": "美剧",
+            "name": "美剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/meijutt"
             }
         },
         {
-            "title": "韩剧",
+            "name": "韩剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/hanjutv"
             }
         },
         {
-            "title": "日剧",
+            "name": "日剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/rj"
             }
         },
         {
-            "title": "海外剧",
+            "name": "海外剧",
             "ext": {
                 "url": "https://www.czzyvideo.com/movie_bt/movie_bt_series/hwj"
             }
@@ -403,21 +412,20 @@
         }
         
         async getConfig() {
-            return JSON.stringify(this.appConfig);
+            return jsonify(this.appConfig);
         }
         
         async getCards(ext) {
             try {
-                const extData = JSON.parse(ext);
+                ext = argsify(ext);
                 const cards = [];
                 
-                const response = await fetch(extData.url, {
+                const response = await $fetch.get(ext.url, {
                     headers: {
                         'User-Agent': this.UA
                     }
                 });
-                const html = await response.text();
-                const soup = this.cheerio(html);
+                const soup = this.cheerio(response.data);
                 
                 for (const element of soup.select('.bt_img li')) {
                     const href = element.select_one('.bt_img li a')?.attr('href');
@@ -438,12 +446,150 @@
                     }
                 }
                 
-                return JSON.stringify({
+                return jsonify({
                     list: cards
                 });
             } catch (e) {
                 console.error('getCards error:', e);
-                return JSON.stringify({
+                return jsonify({
+                    list: []
+                });
+            }
+        }
+        
+        async getTracks(ext) {
+            try {
+                ext = argsify(ext);
+                const tracks = [];
+                
+                const response = await $fetch.get(ext.url, {
+                    headers: {
+                        'User-Agent': this.UA
+                    }
+                });
+                const soup = this.cheerio(response.data);
+                
+                for (const element of soup.select('.navlist.hidden-md-and-down a')) {
+                    const url = element.attr('href');
+                    const name = element.text().trim();
+                    
+                    if (url && name) {
+                        tracks.push({
+                            name: name,
+                            pan: '',
+                            ext: {
+                                url: url.startsWith('http') ? url : new URL(url, this.appConfig.site).href
+                            }
+                        });
+                    }
+                }
+                
+                return jsonify({
+                    list: [{
+                        title: '默认',
+                        tracks: tracks
+                    }]
+                });
+            } catch (e) {
+                console.error('getTracks error:', e);
+                return jsonify({
+                    list: []
+                });
+            }
+        }
+        
+        async getPlayinfo(ext) {
+            try {
+                ext = argsify(ext);
+                let url = ext.url;
+                
+                const response = await $fetch.get(url, {
+                    headers: {
+                        'User-Agent': this.UA
+                    }
+                });
+                const soup = this.cheerio(response.data);
+                
+                let playUrl = '';
+                const element = soup.select_one('.module-player-box iframe');
+                if (element) {
+                    playUrl = element.attr('src');
+                    if (playUrl && !playUrl.startsWith('http')) {
+                        playUrl = new URL(playUrl, this.appConfig.site).href;
+                    }
+                }
+                
+                return jsonify({
+                    urls: [playUrl],
+                    headers: [{
+                        'User-Agent': this.UA,
+                        'Referer': url
+                    }]
+                });
+            } catch (e) {
+                console.error('getPlayinfo error:', e);
+                return jsonify({
+                    urls: [],
+                    headers: []
+                });
+            }
+        }
+        
+        async search(ext) {
+            try {
+                ext = argsify(ext);
+                const cards = [];
+                
+                if (!ext.text) {
+                    return jsonify({
+                        list: cards
+                    });
+                }
+                
+                const searchConfig = {"enabled": true, "method": "GET", "url": "https://www.czzyvideo.com/daoyongjiekoshibushiy0ubing", "params": {"key": "q"}};
+                if (!searchConfig.enabled) {
+                    return jsonify({
+                        list: cards
+                    });
+                }
+                
+                const searchUrl = searchConfig.url + '?' + new URLSearchParams({
+                    [searchConfig.params.key]: ext.text,
+                    page: ext.page || 1
+                }).toString();
+                
+                const response = await $fetch.get(searchUrl, {
+                    headers: {
+                        'User-Agent': this.UA
+                    }
+                });
+                const soup = this.cheerio(response.data);
+                
+                for (const element of soup.select('.bt_img li')) {
+                    const href = element.select_one('.bt_img li a')?.attr('href');
+                    const title = element.select_one('.title')?.text().trim();
+                    const img = element.select_one('img[data-src]');
+                    const cover = img?.attr('data-src') || img?.attr('data-original') || img?.attr('src');
+                    
+                    if (href && title) {
+                        cards.push({
+                            vod_id: href,
+                            vod_name: title,
+                            vod_pic: cover,
+                            vod_remarks: '',
+                            ext: {
+                                url: href.startsWith('http') ? href : new URL(href, this.appConfig.site).href
+                            }
+                        });
+                    }
+                }
+                
+                return jsonify({
+                    list: cards
+                });
+            } catch (e) {
+                console.error('search error:', e);
+                return jsonify({
                     list: []
                 });
             }
