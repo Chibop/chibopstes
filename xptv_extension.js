@@ -5,7 +5,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '网式化',
+    title: '网页格11式化',
     site: 'https://123av.com',
 }
 
@@ -97,59 +97,98 @@ async function getCards(ext) {
         }
     }
 
-    $print(`正在请求URL: ${url}`)
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
+    try {
+        $print(`正在请求URL: ${url}`)
+        const { data } = await Promise.race([
+            $fetch.get(url, {
+                headers: {
+                    'User-Agent': UA,
+                },
+            }),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('请求超时')), 10000)
+            )
+        ])
 
-    const $ = cheerio.load(data)
-    $print('页面加载完成，开始解析视频列表')
-
-    // 尝试多个可能的选择器
-    const selectors = [
-        '.video-item',
-        '.module-item',
-        '.bt_img li',
-        '.movie-list-item',
-        '.video-list-item',
-        '.item',  // 更通用的选择器
-        '.post',  // WordPress常用
-        'article'  // 通用文章容器
-
-    for (const selector of selectors) {
-        $print(`尝试选择器: ${selector}`)
-        const elements = $(selector)
-        if (elements.length > 0) {
-            $print(`找到 ${elements.length} 个视频项`)
-            elements.each((_, element) => {
-                const $element = $(element)
-                const href = $element.find('a').attr('href') || $element.attr('href')
-                const title = $element.find('.video-title,.title,.module-item-title').text().trim()
-                const img = $element.find('img')
-                const cover = img.attr('data-src') || img.attr('data-original') || img.attr('src')
-                const subTitle = $element.find('.video-duration,.module-item-text').text().trim()
-
-                if (href && title) {
-                    $print(`解析到视频: ${title}`)
-                    cards.push({
-                        vod_id: href,
-                        vod_name: title,
-                        vod_pic: cover,
-                        vod_remarks: subTitle,
-                        ext: {
-                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
-                        },
-                    })
-                }
-            })
-            break
+        if (!data) {
+            throw new Error('未获取到数据')
         }
-    }
 
-    if (cards.length === 0) {
-        $print('未找到任何视频项，请检查网页结构')
+        const $ = cheerio.load(data)
+        $print('页面加载完成，开始解析视频列表')
+
+        // 优化选择器匹配逻辑
+        const selectors = [
+            '.video-item',
+            '.module-item',
+            '.bt_img li',
+            '.movie-list-item',
+            '.video-list-item',
+            '.item',
+            '.post',
+            'article'
+        ]
+
+        let foundItems = false
+        for (const selector of selectors) {
+            $print(`尝试选择器: ${selector}`)
+            const elements = $(selector)
+            if (elements.length > 0) {
+                $print(`找到 ${elements.length} 个视频项`)
+                elements.each((_, element) => {
+                    const $element = $(element)
+                    // 改进数据提取逻辑
+                    const links = $element.find('a')
+                    const href = links.length > 0 ? 
+                        (links.first().attr('href') || $element.attr('href')) : 
+                        null
+
+                    // 优化标题提取
+                    const titleSelectors = ['.video-title', '.title', '.module-item-title', 'h3', '.name']
+                    let title = ''
+                    for (const titleSelector of titleSelectors) {
+                        title = $element.find(titleSelector).text().trim()
+                        if (title) break
+                    }
+
+                    // 优化图片提取
+                    const img = $element.find('img')
+                    const cover = img.attr('data-src') || 
+                                img.attr('data-original') || 
+                                img.attr('src')
+
+                    // 优化副标题提取
+                    const subTitleSelectors = ['.video-duration', '.module-item-text', '.subtitle']
+                    let subTitle = ''
+                    for (const subTitleSelector of subTitleSelectors) {
+                        subTitle = $element.find(subTitleSelector).text().trim()
+                        if (subTitle) break
+                    }
+
+                    if (href && title) {
+                        $print(`解析到视频: ${title}`)
+                        cards.push({
+                            vod_id: href,
+                            vod_name: title,
+                            vod_pic: cover,
+                            vod_remarks: subTitle,
+                            ext: {
+                                url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
+                            },
+                        })
+                        foundItems = true
+                    }
+                })
+                if (foundItems) break
+            }
+        }
+
+        if (cards.length === 0) {
+            $print('未找到任何视频项，返回空列表')
+        }
+
+    } catch (error) {
+        $print(`获取视频列表出错: ${error.message}`)
     }
 
     return jsonify({
@@ -162,52 +201,69 @@ async function getTracks(ext) {
     let tracks = []
     let url = ext.url
 
-    $print(`正在请求URL: ${url}`)
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
+    try {
+        $print(`正在请求URL: ${url}`)
+        const { data } = await Promise.race([
+            $fetch.get(url, {
+                headers: {
+                    'User-Agent': UA,
+                },
+            }),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('请求超时')), 10000)
+            )
+        ])
 
-    const $ = cheerio.load(data)
-    $print('页面加载完成，开始解析播放列表')
-
-    // 尝试多个可能的选择器
-    const selectors = [
-        '.video-episodes a',
-        '.module-play-list a',
-        '.playlist li a',
-        '.play-list a',
-        '.episode-list a'
-    ]
-
-    for (const selector of selectors) {
-        $print(`尝试选择器: ${selector}`)
-        const elements = $(selector)
-        if (elements.length > 0) {
-            $print(`找到 ${elements.length} 个播放项`)
-            elements.each((_, element) => {
-                const $element = $(element)
-                const name = $element.text().trim()
-                const href = $element.attr('href')
-                
-                if (href && name) {
-                    $print(`解析到播放项: ${name}`)
-                    tracks.push({
-                        name: name,
-                        pan: '',
-                        ext: {
-                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
-                        },
-                    })
-                }
-            })
-            break
+        if (!data) {
+            throw new Error('未获取到数据')
         }
-    }
 
-    if (tracks.length === 0) {
-        $print('未找到任何播放项，请检查网页结构')
+        const $ = cheerio.load(data)
+        $print('页面加载完成，开始解析播放列表')
+
+        // 尝试多个可能的选择器
+        const selectors = [
+            '.video-episodes a',
+            '.module-play-list a',
+            '.playlist li a',
+            '.play-list a',
+            '.episode-list a',
+            '.player-list a',  // 更通用的选择器
+            '.episodes a'
+        ]
+
+        let foundItems = false
+        for (const selector of selectors) {
+            $print(`尝试选择器: ${selector}`)
+            const elements = $(selector)
+            if (elements.length > 0) {
+                $print(`找到 ${elements.length} 个播放项`)
+                elements.each((_, element) => {
+                    const $element = $(element)
+                    const name = $element.text().trim()
+                    const href = $element.attr('href')
+                    
+                    if (href && name) {
+                        $print(`解析到播放项: ${name}`)
+                        tracks.push({
+                            name: name,
+                            pan: '',
+                            ext: {
+                                url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
+                            },
+                        })
+                        foundItems = true
+                    }
+                })
+                if (foundItems) break
+            }
+        }
+
+        if (tracks.length === 0) {
+            $print('未找到任何播放项，返回空列表')
+        }
+    } catch (error) {
+        $print(`获取播放列表出错: ${error.message}`)
     }
 
     return jsonify({
@@ -221,20 +277,29 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     const url = ext.url
-
-    $print(`正在请求URL: ${url}`)
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
-        },
-    })
-
-    const $ = cheerio.load(data)
-    $print('页面加载完成，开始解析播放源')
-    let playUrl
+    let playUrl = ''
 
     try {
+        $print(`正在请求URL: ${url}`)
+        const { data } = await Promise.race([
+            $fetch.get(url, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': appConfig.site
+                },
+            }),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('请求超时')), 10000)
+            )
+        ])
+
+        if (!data) {
+            throw new Error('未获取到数据')
+        }
+
+        const $ = cheerio.load(data)
+        $print('页面加载完成，开始解析播放源')
+
         // 尝试多个可能的选择器
         const selectors = [
             '#video-player source',
@@ -246,7 +311,9 @@ async function getPlayinfo(ext) {
             '.video-container video',  // HTML5视频容器
             'source[src*=".m3u8"]',  // m3u8源
             'source[src*=".mp4"]'  // mp4源
+        ]
 
+        let foundSource = false
         for (const selector of selectors) {
             $print(`尝试选择器: ${selector}`)
             const element = $(selector).first()
@@ -254,21 +321,32 @@ async function getPlayinfo(ext) {
                 playUrl = element.attr('src')
                 if (playUrl) {
                     $print(`找到播放源: ${playUrl}`)
+                    foundSource = true
                     break
                 }
             }
         }
 
         // 如果没找到视频源，尝试从script中提取
-        if (!playUrl) {
+        if (!foundSource) {
             $print('尝试从script标签中提取播放源')
             const scriptContent = $('script:contains("player")').text()
-            const match = scriptContent.match(/url:\s*['"](.+?)['"]/) || 
-                         scriptContent.match(/src:\s*['"](.+?)['"]/) ||
-                         scriptContent.match(/source:\s*['"](.+?)['"]/) 
-            if (match) {
-                playUrl = match[1]
-                $print(`从script中找到播放源: ${playUrl}`)
+            const patterns = [
+                /url:\s*['"](.+?)['"]/, 
+                /src:\s*['"](.+?)['"]/, 
+                /source:\s*['"](.+?)['"]/, 
+                /video:\s*['"](.+?)['"]/, 
+                /playUrl:\s*['"](.+?)['"]/ 
+            ]
+            
+            for (const pattern of patterns) {
+                const match = scriptContent.match(pattern)
+                if (match) {
+                    playUrl = match[1]
+                    $print(`从script中找到播放源: ${playUrl}`)
+                    foundSource = true
+                    break
+                }
             }
         }
 
@@ -276,16 +354,16 @@ async function getPlayinfo(ext) {
         if (playUrl && !playUrl.startsWith('http')) {
             playUrl = new URL(playUrl, appConfig.site).href
         }
-    } catch (error) {
-        $print(`解析播放源时出错: ${error}`)
-    }
 
-    if (!playUrl) {
-        $print('未找到任何播放源，请检查网页结构')
+        if (!playUrl) {
+            $print('未找到任何播放源，返回空URL')
+        }
+    } catch (error) {
+        $print(`解析播放源时出错: ${error.message}`)
     }
 
     return jsonify({ 
-        urls: [playUrl], 
+        urls: playUrl ? [playUrl] : [], 
         headers: [{ 'User-Agent': UA }]
     })
 }
