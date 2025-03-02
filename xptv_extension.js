@@ -1,5 +1,3 @@
-//123
-
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
 
@@ -7,7 +5,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '网页格式化',
+    title: '网式化',
     site: 'https://123av.com',
 }
 
@@ -25,8 +23,8 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    $print(`正在请求URL: ${appConfig.site}/zh/dm4`)
-    const { data } = await $fetch.get(appConfig.site + '/zh/dm4', {
+    $print(`正在请求URL: ${appConfig.site}`)
+    const { data } = await $fetch.get(appConfig.site, {
         headers: {
             'User-Agent': UA,
         },
@@ -39,8 +37,13 @@ async function getTabs() {
         '.nav-item',
         '.navbar-item',
         '.menu-item',
-        '.header-nav-item'
-    ]
+        '.header-nav-item',
+        '.nav a',  // 更通用的选择器
+        '.navbar a',
+        '.menu a',
+        '#menu-main-menu li a',  // WordPress常用导航
+        '.main-menu a',
+        'header a'  // 最通用的选择器
 
     for (const selector of selectors) {
         $print(`尝试选择器: ${selector}`)
@@ -87,7 +90,11 @@ async function getCards(ext) {
 
     // 处理分页
     if (page > 1) {
-        url = url.replace(/\/zh\/dm4$/, '') + `/zh/dm4?page=${page}`
+        if (url.includes('?')) {
+            url += `&page=${page}`
+        } else {
+            url += `?page=${page}`
+        }
     }
 
     $print(`正在请求URL: ${url}`)
@@ -98,15 +105,18 @@ async function getCards(ext) {
     })
 
     const $ = cheerio.load(data)
-    $print('页面加载完成，开始解析')
+    $print('页面加载完成，开始解析视频列表')
 
     // 尝试多个可能的选择器
     const selectors = [
         '.video-item',
         '.module-item',
         '.bt_img li',
-        '.movie-list-item'
-    ]
+        '.movie-list-item',
+        '.video-list-item',
+        '.item',  // 更通用的选择器
+        '.post',  // WordPress常用
+        'article'  // 通用文章容器
 
     for (const selector of selectors) {
         $print(`尝试选择器: ${selector}`)
@@ -216,6 +226,7 @@ async function getPlayinfo(ext) {
     const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
+            'Referer': appConfig.site
         },
     })
 
@@ -230,8 +241,11 @@ async function getPlayinfo(ext) {
             '.module-player-box iframe',
             '#player iframe',
             'video source',
-            'iframe'
-        ]
+            'iframe',
+            '.player-box iframe',  // 常见播放器容器
+            '.video-container video',  // HTML5视频容器
+            'source[src*=".m3u8"]',  // m3u8源
+            'source[src*=".mp4"]'  // mp4源
 
         for (const selector of selectors) {
             $print(`尝试选择器: ${selector}`)
