@@ -1,4 +1,3 @@
-//1111
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
 
@@ -6,7 +5,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '格式1化',
+    title: '123',
     site: 'https://123av.com',
 }
 
@@ -67,12 +66,16 @@ async function getCards(ext) {
     let cards = []
     let { page = 1, url } = ext
 
-    // 处理分页
+    // 优化分页处理逻辑，参考czyy.js
     if (page > 1) {
-        if (url.includes('?')) {
+        if (url.includes('/page/')) {
+            url = url.replace(/\/page\/\d+/, `/page/${page}`)
+        } else if (url.includes('?page=')) {
+            url = url.replace(/page=\d+/, `page=${page}`)
+        } else if (url.includes('?')) {
             url += `&page=${page}`
         } else {
-            url += `?page=${page}`
+            url += `/page/${page}`
         }
     }
 
@@ -96,13 +99,18 @@ async function getCards(ext) {
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析视频列表')
 
-        // 优化选择器，参考czyy.js
-        $('.bt_img.mi_ne_kd.mrb ul > li, .video-item, .module-item').each((_, element) => {
+        // 优化选择器和数据提取逻辑
+        $('.bt_img.mi_ne_kd.mrb ul > li, .video-item, .module-item, .box-item').each((_, element) => {
             const $element = $(element)
-            const href = $element.find('a').first().attr('href')
-            const title = $element.find('img').attr('alt') || $element.find('.title').text().trim()
-            const cover = $element.find('img').attr('data-original') || $element.find('img').attr('src')
-            const subTitle = $element.find('.jidi span, .video-duration').text().trim()
+            const $link = $element.find('a').first()
+            const $img = $element.find('img')
+            const $title = $element.find('.title, .detail a')
+            const $duration = $element.find('.jidi span, .video-duration, .duration')
+            
+            const href = $link.attr('href')
+            const title = $img.attr('alt') || $title.text().trim()
+            const cover = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src')
+            const subTitle = $duration.text().trim()
 
             if (href && title) {
                 $print(`解析到视频: ${title}`)
