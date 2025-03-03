@@ -5,7 +5,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '网页格式化',
+    title: '网页111格式化',
     site: 'https://123av.com',
 }
 
@@ -17,7 +17,7 @@ async function getConfig() {
 
 async function getTabs() {
     let list = []
-    let ignore = ['关于', '公告', '官方', '备用', '群', '地址', '求片']
+    let ignore = ['关于', '公告', '官方', '备用', '群', '地址', '求片', 'javascript:']
     
     function isIgnoreClassName(className) {
         return ignore.some((element) => className.includes(element))
@@ -32,12 +32,11 @@ async function getTabs() {
     const $ = cheerio.load(data)
     $print('页面加载完成，开始解析导航菜单')
 
-    // 优化选择器，针对123av.com的导航结构
-    // 首先尝试获取主导航菜单中的子菜单项
+    // 使用网站实际的导航菜单选择器
     $('#nav > li > ul > li > a').each((_, e) => {
         const name = $(e).text().trim()
         const href = $(e).attr('href')
-        if (href && name && !isIgnoreClassName(name)) {
+        if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
             $print(`解析到导航项: ${name}`)
             list.push({
                 name,
@@ -51,10 +50,10 @@ async function getTabs() {
     // 如果没有找到导航项，尝试其他常见选择器
     if (list.length === 0) {
         $print('尝试其他导航选择器')
-        $('ul.submenu_mi > li > a, .nav-item a, .menu-item a').each((_, e) => {
+        $('.nav-wrap a, .menu-item a').each((_, e) => {
             const name = $(e).text().trim()
             const href = $(e).attr('href')
-            if (href && name && !isIgnoreClassName(name)) {
+            if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
                 $print(`解析到导航项: ${name}`)
                 list.push({
                     name,
@@ -93,7 +92,6 @@ async function getCards(ext) {
         } else if (url.includes('?')) {
             url += `&page=${page}`
         } else {
-            // 针对123av.com的分页格式
             if (url.endsWith('/')) {
                 url += `page/${page}`
             } else {
@@ -122,19 +120,17 @@ async function getCards(ext) {
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析视频列表')
         
-        // 首先尝试123av.com特有的.box-item选择器
-        $('.box-item').each((_, element) => {
+        // 使用网站实际的DOM结构选择器
+        $('.box-item-list .box-item').each((_, element) => {
             const $element = $(element)
-            const $link = $element.find('.thumb a').first() || $element.find('a').first()
-            const $img = $element.find('.thumb img') || $element.find('img')
+            const $link = $element.find('.thumb a').first()
+            const $img = $element.find('.thumb img')
             const $title = $element.find('.detail a')
             const $duration = $element.find('.duration')
             
             const href = $link.attr('href')
-            // 获取标题，优先使用img的alt属性，然后是a标签的文本
             const title = $img.attr('alt') || $title.text().trim()
-            // 获取封面图，尝试多种可能的属性
-            const cover = $img.attr('data-src') || $img.attr('data-original') || $img.attr('src')
+            const cover = $img.attr('data-src') || $img.attr('src')
             const subTitle = $duration.text().trim()
 
             if (href && title) {
@@ -150,40 +146,9 @@ async function getCards(ext) {
                 })
             }
         })
-        
-        // 如果没有找到视频，尝试其他常见选择器
-        if (cards.length === 0) {
-            $print('未找到.box-item元素，尝试其他选择器')
-            $('.bt_img.mi_ne_kd.mrb ul > li, .video-item, .module-item').each((_, element) => {
-                const $element = $(element)
-                const $link = $element.find('a').first()
-                const $img = $element.find('img')
-                const $title = $element.find('.title') || $element.find('h3')
-                const $duration = $element.find('.jidi span, .video-duration')
-                
-                const href = $link.attr('href')
-                const title = $img.attr('alt') || $title.text().trim()
-                const cover = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src')
-                const subTitle = $duration.text().trim()
-
-                if (href && title) {
-                    $print(`解析到视频: ${title}`)
-                    cards.push({
-                        vod_id: href,
-                        vod_name: title,
-                        vod_pic: cover,
-                        vod_remarks: subTitle,
-                        ext: {
-                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
-                        },
-                    })
-                }
-            })
-        }
 
         if (cards.length === 0) {
-            $print('尝试所有选择器后仍未找到任何视频项，返回空列表')
-            // 输出页面结构的一部分，帮助调试
+            $print('未找到任何视频项，返回空列表')
             $print('页面结构片段:')
             $print($('body').html().substring(0, 500))
         } else {
@@ -227,8 +192,8 @@ async function getTracks(ext) {
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析播放列表')
 
-        // 优化选择器，参考czyy.js
-        $('.paly_list_btn a, .module-play-list a, .video-episodes a').each((_, e) => {
+        // 优化播放列表选择器
+        $('.paly_list_btn a, .module-play-list a, .video-episodes a, .stui-content__playlist a, .fed-play-item a').each((_, e) => {
             const name = $(e).text().trim()
             const href = $(e).attr('href')
             
@@ -285,8 +250,18 @@ async function getPlayinfo(ext) {
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析播放源')
 
+        // 尝试获取预览图片和视频时长信息
+        const previewUrl = $('.thumb').attr('data-preview')
+        const duration = $('.duration').text().trim()
+        if (previewUrl) {
+            $print(`找到预览图片: ${previewUrl}`)
+        }
+        if (duration) {
+            $print(`视频时长: ${duration}`)
+        }
+
         // 尝试获取iframe源
-        const jsurl = $('iframe').attr('src')
+        const jsurl = $('iframe[src*="player"], iframe[src*="play"], iframe[allowfullscreen]').attr('src')
         if (jsurl) {
             $print('找到iframe，尝试解析播放源')
             let headers = {
