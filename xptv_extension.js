@@ -5,7 +5,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '123',
+    title: '网页格式化',
     site: 'https://123av.com',
 }
 
@@ -32,9 +32,9 @@ async function getTabs() {
     const $ = cheerio.load(data)
     $print('页面加载完成，开始解析导航菜单')
 
-    // 优化选择器，参考czyy.js
-    let allClass = $('ul.submenu_mi > li > a, .nav-item a, .menu-item a')
-    allClass.each((_, e) => {
+    // 优化选择器，针对123av.com的导航结构
+    // 首先尝试获取主导航菜单中的子菜单项
+    $('#nav > li > ul > li > a').each((_, e) => {
         const name = $(e).text().trim()
         const href = $(e).attr('href')
         if (href && name && !isIgnoreClassName(name)) {
@@ -47,6 +47,24 @@ async function getTabs() {
             })
         }
     })
+    
+    // 如果没有找到导航项，尝试其他常见选择器
+    if (list.length === 0) {
+        $print('尝试其他导航选择器')
+        $('ul.submenu_mi > li > a, .nav-item a, .menu-item a').each((_, e) => {
+            const name = $(e).text().trim()
+            const href = $(e).attr('href')
+            if (href && name && !isIgnoreClassName(name)) {
+                $print(`解析到导航项: ${name}`)
+                list.push({
+                    name,
+                    ext: {
+                        url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
+                    },
+                })
+            }
+        })
+    }
 
     if (list.length === 0) {
         $print('未找到任何导航项，添加默认导航')
@@ -66,7 +84,7 @@ async function getCards(ext) {
     let cards = []
     let { page = 1, url } = ext
 
-    // 优化分页处理逻辑，参考czyy.js
+    // 优化分页处理逻辑
     if (page > 1) {
         if (url.includes('/page/')) {
             url = url.replace(/\/page\/\d+/, `/page/${page}`)
@@ -75,7 +93,12 @@ async function getCards(ext) {
         } else if (url.includes('?')) {
             url += `&page=${page}`
         } else {
-            url += `/page/${page}`
+            // 针对123av.com的分页格式
+            if (url.endsWith('/')) {
+                url += `page/${page}`
+            } else {
+                url += `/page/${page}`
+            }
         }
     }
 
@@ -98,18 +121,20 @@ async function getCards(ext) {
 
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析视频列表')
-
-        // 优化选择器和数据提取逻辑
-        $('.bt_img.mi_ne_kd.mrb ul > li, .video-item, .module-item, .box-item').each((_, element) => {
+        
+        // 首先尝试123av.com特有的.box-item选择器
+        $('.box-item').each((_, element) => {
             const $element = $(element)
-            const $link = $element.find('a').first()
-            const $img = $element.find('img')
-            const $title = $element.find('.title, .detail a')
-            const $duration = $element.find('.jidi span, .video-duration, .duration')
+            const $link = $element.find('.thumb a').first() || $element.find('a').first()
+            const $img = $element.find('.thumb img') || $element.find('img')
+            const $title = $element.find('.detail a')
+            const $duration = $element.find('.duration')
             
             const href = $link.attr('href')
+            // 获取标题，优先使用img的alt属性，然后是a标签的文本
             const title = $img.attr('alt') || $title.text().trim()
-            const cover = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src')
+            // 获取封面图，尝试多种可能的属性
+            const cover = $img.attr('data-src') || $img.attr('data-original') || $img.attr('src')
             const subTitle = $duration.text().trim()
 
             if (href && title) {
@@ -125,13 +150,51 @@ async function getCards(ext) {
                 })
             }
         })
+        
+        // 如果没有找到视频，尝试其他常见选择器
+        if (cards.length === 0) {
+            $print('未找到.box-item元素，尝试其他选择器')
+            $('.bt_img.mi_ne_kd.mrb ul > li, .video-item, .module-item').each((_, element) => {
+                const $element = $(element)
+                const $link = $element.find('a').first()
+                const $img = $element.find('img')
+                const $title = $element.find('.title') || $element.find('h3')
+                const $duration = $element.find('.jidi span, .video-duration')
+                
+                const href = $link.attr('href')
+                const title = $img.attr('alt') || $title.text().trim()
+                const cover = $img.attr('data-original') || $img.attr('data-src') || $img.attr('src')
+                const subTitle = $duration.text().trim()
+
+                if (href && title) {
+                    $print(`解析到视频: ${title}`)
+                    cards.push({
+                        vod_id: href,
+                        vod_name: title,
+                        vod_pic: cover,
+                        vod_remarks: subTitle,
+                        ext: {
+                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
+                        },
+                    })
+                }
+            })
+        }
 
         if (cards.length === 0) {
-            $print('未找到任何视频项，返回空列表')
+            $print('尝试所有选择器后仍未找到任何视频项，返回空列表')
+            // 输出页面结构的一部分，帮助调试
+            $print('页面结构片段:')
+            $print($('body').html().substring(0, 500))
+        } else {
+            $print(`共解析到 ${cards.length} 个视频项`)
         }
 
     } catch (error) {
         $print(`获取视频列表出错: ${error.message}`)
+        if (error.stack) {
+            $print(`错误堆栈: ${error.stack}`)
+        }
     }
 
     return jsonify({
