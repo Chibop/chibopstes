@@ -5,7 +5,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 let appConfig = {
     ver: 1,
-    title: '123AV',
+    title: '1231AV',
     site: 'https://123av.com',
 }
 
@@ -23,34 +23,26 @@ async function getTabs() {
         return ignore.some((element) => className.includes(element))
     }
 
-    $print(`正在请求URL: ${appConfig.site}`)
-    const { data } = await $fetch.get(appConfig.site, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-    const $ = cheerio.load(data)
-    $print('页面加载完成，开始解析导航菜单')
-
-    // 根据网页结构文档使用正确的导航菜单选择器
-    $('#nav > li > ul > li > a').each((_, e) => {
-        const name = $(e).text().trim()
-        const href = $(e).attr('href')
-        if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
-            $print(`解析到导航项: ${name}`)
-            list.push({
-                name,
-                ext: {
-                    url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
+    try {
+        $print(`正在请求URL: ${appConfig.site}`)
+        const { data } = await Promise.race([
+            $fetch.get(appConfig.site, {
+                headers: {
+                    'User-Agent': UA,
                 },
-            })
+            }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 10000))
+        ])
+
+        if (!data) {
+            throw new Error('未获取到数据')
         }
-    })
-    
-    // 如果没有找到导航项，尝试其他选择器
-    if (list.length === 0) {
-        $print('尝试其他导航选择器')
-        $('#nav > li > a').each((_, e) => {
+
+        const $ = cheerio.load(data)
+        $print('页面加载完成，开始解析导航菜单')
+
+        // 使用主选择器解析导航菜单
+        $('#nav > li > ul > li > a').each((_, e) => {
             const name = $(e).text().trim()
             const href = $(e).attr('href')
             if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
@@ -63,16 +55,40 @@ async function getTabs() {
                 })
             }
         })
-    }
 
-    if (list.length === 0) {
-        $print('未找到任何导航项，添加默认导航')
-        list.push({
-            name: '最新',
-            ext: {
-                url: appConfig.site
-            }
-        })
+        // 如果主选择器未找到导航项，使用备用选择器
+        if (list.length === 0) {
+            $print('使用备用选择器解析导航菜单')
+            $('#nav > li > a').each((_, e) => {
+                const name = $(e).text().trim()
+                const href = $(e).attr('href')
+                if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
+                    $print(`解析到导航项: ${name}`)
+                    list.push({
+                        name,
+                        ext: {
+                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
+                        },
+                    })
+                }
+            })
+        }
+
+        if (list.length === 0) {
+            $print('未找到任何导航项，添加默认导航')
+            list.push({
+                name: '最新',
+                ext: {
+                    url: appConfig.site
+                }
+            })
+        }
+
+    } catch (error) {
+        $print(`获取导航菜单出错: ${error.message}`)
+        if (error.stack) {
+            $print(`错误堆栈: ${error.stack}`)
+        }
     }
 
     return list
@@ -83,7 +99,7 @@ async function getCards(ext) {
     let cards = []
     let { page = 1, url } = ext
 
-    // 优化分页处理逻辑
+    // 处理分页URL
     if (page > 1) {
         if (url.includes('/page/')) {
             url = url.replace(/\/page\/\d+/, `/page/${page}`)
@@ -108,9 +124,7 @@ async function getCards(ext) {
                     'User-Agent': UA,
                 },
             }),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('请求超时')), 10000)
-            )
+            new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 10000))
         ])
 
         if (!data) {
@@ -119,8 +133,8 @@ async function getCards(ext) {
 
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析视频列表')
-        
-        // 根据网页结构文档使用正确的视频列表选择器
+
+        // 使用主选择器解析视频列表
         $('.row.box-item-list.gutter-20 .box-item').each((_, element) => {
             const $element = $(element)
             const $link = $element.find('.thumb a').first()
@@ -129,17 +143,12 @@ async function getCards(ext) {
             const $duration = $element.find('.duration')
             
             const href = $link.attr('href')
-            // 从img的title或alt属性获取视频代码
             const videoCode = $img.attr('title') || $img.attr('alt') || ''
-            // 从detail > a的文本内容获取完整标题
             const fullTitle = $title.text().trim()
-            // 使用data-src属性获取真实图片URL（懒加载）
             const cover = $img.attr('data-src') || $img.attr('src')
             const duration = $duration.text().trim()
-            // 从thumb的data-preview属性获取预览图
             const preview = $element.find('.thumb').attr('data-preview') || ''
             
-            // 提取视频ID
             let videoId = ''
             if (href) {
                 videoId = href.replace('v/', '')
@@ -147,7 +156,7 @@ async function getCards(ext) {
 
             if (href && (videoCode || fullTitle)) {
                 const title = fullTitle || videoCode
-                $print(`解析到视频: ${title}, ID: ${videoId}`)
+                $print(`解析到视频: ${title}`)
                 cards.push({
                     vod_id: videoId,
                     vod_name: title,
@@ -162,9 +171,9 @@ async function getCards(ext) {
             }
         })
 
-        // 如果没有找到视频，尝试其他常见选择器
+        // 如果主选择器未找到视频，使用备用选择器
         if (cards.length === 0) {
-            $print('尝试其他视频列表选择器')
+            $print('使用备用选择器解析视频列表')
             $('.box-item, .video-item').each((_, element) => {
                 const $element = $(element)
                 const $link = $element.find('a').first()
@@ -192,11 +201,7 @@ async function getCards(ext) {
         }
 
         if (cards.length === 0) {
-            $print('未找到任何视频项，返回空列表')
-            $print('页面结构片段:')
-            $print($('body').html().substring(0, 500))
-        } else {
-            $print(`共解析到 ${cards.length} 个视频项`)
+            $print('未找到任何视频项')
         }
 
     } catch (error) {
@@ -224,9 +229,7 @@ async function getTracks(ext) {
                     'User-Agent': UA,
                 },
             }),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('请求超时')), 10000)
-            )
+            new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 10000))
         ])
 
         if (!data) {
@@ -236,7 +239,7 @@ async function getTracks(ext) {
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析播放列表')
 
-        // 123av网站通常只有一个播放源，直接添加默认播放项
+        // 添加默认播放源
         tracks.push({
             name: '默认播放源',
             pan: '',
@@ -245,13 +248,13 @@ async function getTracks(ext) {
             },
         })
 
-        // 尝试查找其他可能的播放列表
+        // 解析其他播放源
         $('.paly_list_btn a, .module-play-list a, .video-episodes a').each((_, e) => {
             const name = $(e).text().trim()
             const href = $(e).attr('href')
             
-            if (href && name && tracks.length === 1) { // 如果已经有默认播放源，只添加其他不同的播放源
-                $print(`解析到播放项: ${name}`)
+            if (href && name && tracks.length === 1) {
+                $print(`解析到播放源: ${name}`)
                 tracks.push({
                     name: name,
                     pan: '',
@@ -263,10 +266,14 @@ async function getTracks(ext) {
         })
 
         if (tracks.length === 0) {
-            $print('未找到任何播放项，返回空列表')
+            $print('未找到任何播放源')
         }
+
     } catch (error) {
         $print(`获取播放列表出错: ${error.message}`)
+        if (error.stack) {
+            $print(`错误堆栈: ${error.stack}`)
+        }
     }
 
     return jsonify({
@@ -291,9 +298,7 @@ async function getPlayinfo(ext) {
                     'Referer': appConfig.site
                 },
             }),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('请求超时')), 10000)
-            )
+            new Promise((_, reject) => setTimeout(() => reject(new Error('请求超时')), 10000))
         ])
 
         if (!data) {
@@ -303,17 +308,7 @@ async function getPlayinfo(ext) {
         const $ = cheerio.load(data)
         $print('页面加载完成，开始解析播放源')
 
-        // 尝试获取预览图片和视频时长信息
-        const previewUrl = $('.thumb').attr('data-preview')
-        const duration = $('.duration').text().trim()
-        if (previewUrl) {
-            $print(`找到预览图片: ${previewUrl}`)
-        }
-        if (duration) {
-            $print(`视频时长: ${duration}`)
-        }
-
-        // 尝试获取iframe源
+        // 获取iframe源
         const jsurl = $('iframe[src*="player"], iframe[src*="play"], iframe[allowfullscreen]').attr('src')
         if (jsurl) {
             $print(`找到iframe，URL: ${jsurl}`)
@@ -337,7 +332,6 @@ async function getPlayinfo(ext) {
                 $print('分析脚本内容')
                 
                 if (code.includes('var player')) {
-                    // 尝试解密播放源
                     let player = code.match(/var player = "(.*?)"/) 
                     let rand = code.match(/var rand = "(.*?)"/) 
 
@@ -362,7 +356,7 @@ async function getPlayinfo(ext) {
                         }
                     }
                 } else {
-                    // 尝试其他解析方式
+                    // 尝试获取直接视频源
                     const videoSrc = $('video source').attr('src') || $('video').attr('src')
                     if (videoSrc) {
                         $print('找到直接的视频源')
@@ -370,10 +364,10 @@ async function getPlayinfo(ext) {
                     } else {
                         // 尝试从script标签中查找播放源
                         const scriptContent = $('script:contains("player")').text()
-                        const videoPattern = /url:\s*['"]([^'"]+)['"]|source:\s*['"]([^'"]+)['"]|video:\s*['"]([^'"]+)['"]|playUrl:\s*['"]([^'"]+)['"]/
+                        const videoPattern = /url:\s*['"]([^'"]+)['"]/
                         const match = scriptContent.match(videoPattern)
                         if (match) {
-                            playUrl = match[1] || match[2] || match[3] || match[4]
+                            playUrl = match[1]
                             $print('从脚本中找到播放源')
                         }
                     }
@@ -385,6 +379,7 @@ async function getPlayinfo(ext) {
             $print('未找到播放源')
         } else if (!playUrl.startsWith('http')) {
             playUrl = new URL(playUrl, appConfig.site).href
+            $print(`规范化播放源URL: ${playUrl}`)
         }
 
         return jsonify({
@@ -404,4 +399,3 @@ async function getPlayinfo(ext) {
             headers: []
         })
     }
-}
