@@ -26,7 +26,7 @@ async function getTabs() {
         {
             name: '最近更新',
             ext: {
-                url: `${appConfig.site}/zh/dm5`,
+                url: `${appConfig.site}/zh/dm5/recent-update`,
                 page: 1
             },
         },
