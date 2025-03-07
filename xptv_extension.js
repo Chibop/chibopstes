@@ -1,7 +1,6 @@
 /**
  * 123AV XPTV 扩展脚本
- * 基于czzy脚本风格重写 2223
- 1.1.1
+ * 基于czzy脚本风格重写
  */
 
 const cheerio = createCheerio()
@@ -95,7 +94,9 @@ async function getCards(ext) {
                 vod_pic: image,
                 vod_remarks: remarks,
                 ext: {
-                    url: `${appConfig.site}${link}`
+                    url: link.startsWith('http') ? link : 
+                         link.startsWith('/') ? `${appConfig.site}${link}` : 
+                         `${appConfig.site}/${link}`
                 },
             })
         }
@@ -521,7 +522,9 @@ async function search(ext) {
                 vod_pic: image,
                 vod_remarks: remarks,
                 ext: {
-                    url: `${appConfig.site}${link}`
+                    url: link.startsWith('http') ? link : 
+                         link.startsWith('/') ? `${appConfig.site}${link}` : 
+                         `${appConfig.site}/${link}`
                 },
             })
         }
