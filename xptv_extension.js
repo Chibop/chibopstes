@@ -1,13 +1,13 @@
 /**
  * 123AV XPTV 扩展脚本
  * 作者: 示例作者
- * 版本: 1.0
+ * 版本: 1.1
  * 描述: 123AV网站的视频资源脚本
  */
 
 // 基础配置
 const BASE_URL = 'https://123av.com';
-const API_URL = `${BASE_URL}/zh`;
+const API_URL = BASE_URL;
 const IMG_BASE = 'https://cdn.123av.com';
 
 const PC_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36';
@@ -24,35 +24,35 @@ async function getConfig() {
       {
         name: '最近更新',
         ext: {
-          api: 'recent',
+          api: '/zh/recent',
           page: 1
         },
       },
       {
         name: '热门视频',
         ext: {
-          api: 'trending',
+          api: '/zh/trending',
           page: 1
         },
       },
       {
         name: '今日热门',
         ext: {
-          api: 'today-hot',
+          api: '/zh/today-hot',
           page: 1
         },
       },
       {
         name: '审查内容',
         ext: {
-          api: 'censored',
+          api: '/zh/censored',
           page: 1
         },
       },
       {
         name: '未审查内容',
         ext: {
-          api: 'uncensored',
+          api: '/zh/uncensored',
           page: 1
         },
       }
@@ -68,10 +68,12 @@ async function getCards(ext) {
   ext = argsify(ext);
   const { api, page } = ext;
   
-  let url = `${API_URL}/dm2/${api}`;
+  let url = `${BASE_URL}${api}`;
   if (page > 1) {
     url += `?page=${page}`;
   }
+  
+  $print("请求URL: " + url);
   
   const { data } = await $fetch.get(url, {
     headers: {
@@ -89,11 +91,10 @@ async function getCards(ext) {
     const link = $(element).find('.detail a').attr('href');
     const image = $(element).find('.thumb img').attr('data-src') || $(element).find('.thumb img').attr('src');
     const remarks = $(element).find('.duration').text().trim();
-    const id = link.split('/').pop();
     
     if (link && title) {
       cards.push({
-        vod_id: id,
+        vod_id: link,
         vod_name: title,
         vod_pic: image,
         vod_remarks: remarks,
@@ -103,6 +104,8 @@ async function getCards(ext) {
       });
     }
   });
+  
+  $print("找到卡片数量: " + cards.length);
   
   const hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false;
   
@@ -119,6 +122,8 @@ async function getTracks(ext) {
   ext = argsify(ext);
   const { url } = ext;
   
+  $print("获取播放列表URL: " + url);
+  
   const { data } = await $fetch.get(url, {
     headers: {
       'User-Agent': PC_UA,
@@ -130,30 +135,57 @@ async function getTracks(ext) {
   const $ = cheerio.load(html);
   
   const title = $('h1.title').text().trim();
-  const videoId = url.split('/').pop();
   
   // 查找视频播放地址
   let videoUrl = '';
-  const scriptContent = $('script:contains("window.videos")').html();
-  if (scriptContent) {
+  try {
+    // 尝试从页面脚本中提取视频URL
+    const scriptContent = $('script').text();
     const match = scriptContent.match(/window\.videos\s*=\s*(\[.+?\])/s);
     if (match && match[1]) {
-      try {
-        const videos = JSON.parse(match[1]);
-        if (videos && videos.length > 0 && videos[0].url) {
-          videoUrl = videos[0].url;
-        }
-      } catch (e) {
-        $print("解析视频地址出错: " + e.message);
+      const videos = JSON.parse(match[1]);
+      if (videos && videos.length > 0 && videos[0].url) {
+        videoUrl = videos[0].url;
+        $print("成功从脚本中提取视频URL: " + videoUrl);
       }
     }
+    
+    // 如果上面的方法失败，尝试使用类似czzy.js的方法
+    if (!videoUrl) {
+      const iframe = $('iframe');
+      if (iframe.length > 0) {
+        const iframeSrc = iframe.attr('src');
+        if (iframeSrc) {
+          $print("找到iframe，尝试获取: " + iframeSrc);
+          const { data: iframeData } = await $fetch.get(iframeSrc, {
+            headers: {
+              'User-Agent': PC_UA,
+              'Referer': url
+            }
+          });
+          
+          const $iframe = cheerio.load(iframeData);
+          const scripts = $iframe('script');
+          
+          for (let i = 0; i < scripts.length; i++) {
+            const scriptText = $iframe(scripts[i]).html();
+            if (scriptText && scriptText.includes('var player') || scriptText.includes('url:')) {
+              $print("找到可能包含视频URL的脚本");
+              // 这里可以添加类似于czzy.js中的解析逻辑
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    $print("解析视频地址时出错: " + e.message);
   }
   
   return jsonify({
     list: [{
       title: '默认线路',
       tracks: [{
-        name: title,
+        name: title || '默认',
         ext: {
           url: videoUrl || url
         }
@@ -169,8 +201,10 @@ async function getPlayinfo(ext) {
   ext = argsify(ext);
   let url = ext.url;
   
+  $print("获取播放信息URL: " + url);
+  
   // 如果没有直接获取到视频URL，尝试再次访问详情页解析
-  if (url.includes('123av.com/zh/v/')) {
+  if (!url.includes('http') || url.includes('123av.com')) {
     const { data } = await $fetch.get(url, {
       headers: {
         'User-Agent': PC_UA,
@@ -179,19 +213,31 @@ async function getPlayinfo(ext) {
     });
     
     const $ = cheerio.load(data);
-    const scriptContent = $('script:contains("window.videos")').html();
-    if (scriptContent) {
+    
+    try {
+      const scriptContent = $('script').text();
       const match = scriptContent.match(/window\.videos\s*=\s*(\[.+?\])/s);
       if (match && match[1]) {
-        try {
-          const videos = JSON.parse(match[1]);
-          if (videos && videos.length > 0 && videos[0].url) {
-            url = videos[0].url;
-          }
-        } catch (e) {
-          $print("解析视频地址出错: " + e.message);
+        const videos = JSON.parse(match[1]);
+        if (videos && videos.length > 0 && videos[0].url) {
+          url = videos[0].url;
+          $print("成功从详情页提取视频URL: " + url);
         }
       }
+      
+      // 如果还是没有找到视频URL，尝试从video标签获取
+      if (!url || url === ext.url) {
+        const videoTag = $('video source');
+        if (videoTag.length > 0) {
+          const src = videoTag.attr('src');
+          if (src) {
+            url = src;
+            $print("从video标签获取URL: " + url);
+          }
+        }
+      }
+    } catch (e) {
+      $print("解析视频地址出错: " + e.message);
     }
   }
   
@@ -211,7 +257,9 @@ async function search(ext) {
   ext = argsify(ext);
   const { wd, page = 1 } = ext;
   
-  const searchUrl = `${API_URL}/search?q=${encodeURIComponent(wd)}&page=${page}`;
+  // 修正搜索URL
+  const searchUrl = `${BASE_URL}/zh/search?q=${encodeURIComponent(wd)}&page=${page}`;
+  $print("搜索URL: " + searchUrl);
   
   const { data } = await $fetch.get(searchUrl, {
     headers: {
@@ -229,11 +277,10 @@ async function search(ext) {
     const link = $(element).find('.detail a').attr('href');
     const image = $(element).find('.thumb img').attr('data-src') || $(element).find('.thumb img').attr('src');
     const remarks = $(element).find('.duration').text().trim();
-    const id = link.split('/').pop();
     
     if (link && title) {
       cards.push({
-        vod_id: id,
+        vod_id: link,
         vod_name: title,
         vod_pic: image,
         vod_remarks: remarks,
@@ -243,6 +290,8 @@ async function search(ext) {
       });
     }
   });
+  
+  $print("搜索结果数量: " + cards.length);
   
   const hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false;
   
