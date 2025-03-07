@@ -1,9 +1,13 @@
 /**
  * 123AV XPTV 扩展脚本
  * 作者: 示例作者
- * 版本: 1.1
+ * 版本: 1.2
  * 描述: 123AV网站的视频资源脚本
  */
+
+// 初始化必要的库
+const cheerio = createCheerio()
+const CryptoJS = createCryptoJS()
 
 // 基础配置
 const BASE_URL = 'https://123av.com';
