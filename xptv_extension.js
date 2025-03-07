@@ -1,12 +1,12 @@
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
-
+##1111
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
 let appConfig = {
     ver: 1,
-    title: '1231AV',
-    site: 'https://123av.com',
+    title: '123AV',
+    site: 'https://123av.com/zh/',
 }
 
 async function getConfig() {
@@ -42,7 +42,7 @@ async function getTabs() {
         $print('页面加载完成，开始解析导航菜单')
 
         // 使用主选择器解析导航菜单
-        $('#nav > li > ul > li > a').each((_, e) => {
+        $('#nav > li > a').each((_, e) => {
             const name = $(e).text().trim()
             const href = $(e).attr('href')
             if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
@@ -55,24 +55,6 @@ async function getTabs() {
                 })
             }
         })
-
-        // 如果主选择器未找到导航项，使用备用选择器
-        if (list.length === 0) {
-            $print('使用备用选择器解析导航菜单')
-            $('#nav > li > a').each((_, e) => {
-                const name = $(e).text().trim()
-                const href = $(e).attr('href')
-                if (href && name && !href.includes('javascript:') && !isIgnoreClassName(name)) {
-                    $print(`解析到导航项: ${name}`)
-                    list.push({
-                        name,
-                        ext: {
-                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
-                        },
-                    })
-                }
-            })
-        }
 
         if (list.length === 0) {
             $print('未找到任何导航项，添加默认导航')
@@ -170,35 +152,6 @@ async function getCards(ext) {
                 })
             }
         })
-
-        // 如果主选择器未找到视频，使用备用选择器
-        if (cards.length === 0) {
-            $print('使用备用选择器解析视频列表')
-            $('.box-item, .video-item').each((_, element) => {
-                const $element = $(element)
-                const $link = $element.find('a').first()
-                const $img = $element.find('img')
-                const $duration = $element.find('.duration')
-                
-                const href = $link.attr('href')
-                const title = $img.attr('alt') || $link.attr('title') || $element.find('.title').text().trim()
-                const cover = $img.attr('data-src') || $img.attr('src')
-                const duration = $duration.text().trim()
-                
-                if (href && title) {
-                    $print(`解析到视频: ${title}`)
-                    cards.push({
-                        vod_id: href,
-                        vod_name: title,
-                        vod_pic: cover,
-                        vod_remarks: duration,
-                        ext: {
-                            url: href.startsWith('http') ? href : new URL(href, appConfig.site).href,
-                        },
-                    })
-                }
-            })
-        }
 
         if (cards.length === 0) {
             $print('未找到任何视频项')
@@ -398,4 +351,6 @@ async function getPlayinfo(ext) {
             urls: [],
             headers: []
         })
+}
     }
+
