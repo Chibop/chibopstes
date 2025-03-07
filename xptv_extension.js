@@ -1,7 +1,7 @@
 /**
  * 123AV XPTV 扩展脚本
  * 作者: 示例作者
- * 版本: 1.3
+ * 版本: 1.4
  * 描述: 123AV网站的视频资源脚本
  */
 
@@ -28,35 +28,35 @@ async function getConfig() {
       {
         name: '最近更新',
         ext: {
-          api: '/zh/recent',
+          api: '/zh/dm5',
           page: 1
         },
       },
       {
         name: '热门视频',
         ext: {
-          api: '/zh/trending',
+          api: '/zh/dm2/trending',
           page: 1
         },
       },
       {
         name: '今日热门',
         ext: {
-          api: '/zh/today-hot',
+          api: '/zh/dm2/today-hot',
           page: 1
         },
       },
       {
         name: '审查内容',
         ext: {
-          api: '/zh/censored',
+          api: '/zh/dm2/censored',
           page: 1
         },
       },
       {
         name: '未审查内容',
         ext: {
-          api: '/zh/uncensored',
+          api: '/zh/dm3/uncensored',
           page: 1
         },
       }
