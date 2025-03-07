@@ -26,7 +26,7 @@ async function getTabs() {
         {
             name: '最近更新',
             ext: {
-                url: `${appConfig.site}/zh/dm5/recent-update`,
+                url: `${appConfig.site}/zh/dm5`,
                 page: 1
             },
         },
@@ -88,15 +88,24 @@ async function getCards(ext) {
         const remarks = $(element).find('.duration').text().trim()
         
         if (link && title) {
+            let fullUrl = ''
+            if (link.startsWith('http')) {
+                fullUrl = link
+            } else if (link.startsWith('/zh/')) {
+                fullUrl = `${appConfig.site}${link}`
+            } else if (link.startsWith('/')) {
+                fullUrl = `${appConfig.site}/zh${link}`
+            } else {
+                fullUrl = `${appConfig.site}/zh/${link}`
+            }
+            
             cards.push({
                 vod_id: link,
                 vod_name: title,
                 vod_pic: image,
                 vod_remarks: remarks,
                 ext: {
-                    url: link.startsWith('http') ? link : 
-                         link.startsWith('/') ? `${appConfig.site}${link}` : 
-                         `${appConfig.site}/${link}`
+                    url: fullUrl
                 },
             })
         }
@@ -449,15 +458,24 @@ async function search(ext) {
         const remarks = $(element).find('.duration').text().trim()
         
         if (link && title) {
+            let fullUrl = ''
+            if (link.startsWith('http')) {
+                fullUrl = link
+            } else if (link.startsWith('/zh/')) {
+                fullUrl = `${appConfig.site}${link}`
+            } else if (link.startsWith('/')) {
+                fullUrl = `${appConfig.site}/zh${link}`
+            } else {
+                fullUrl = `${appConfig.site}/zh/${link}`
+            }
+            
             cards.push({
                 vod_id: link,
                 vod_name: title,
                 vod_pic: image,
                 vod_remarks: remarks,
                 ext: {
-                    url: link.startsWith('http') ? link : 
-                         link.startsWith('/') ? `${appConfig.site}${link}` : 
-                         `${appConfig.site}/${link}`
+                    url: fullUrl
                 },
             })
         }
