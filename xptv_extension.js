@@ -1,9 +1,14 @@
 /**
- * 123AV XPTV 扩展脚本 v1.5.1
+ * 123AV XPTV 扩展脚本 v1.5.2
  * 
  * 更新日志:
- * v1.5.1 - 2025-03-10
+ * v1.5.2 - 2025-03-10
  * - 修复视频列表无法显示的问题
+ * - 回退到简化版的视频列表解析逻辑
+ * - 保留AJAX API视频解析的改进
+ * 
+ * v1.5.1 - 2025-03-10
+ * - 修复视频列表无法显示的问题（未成功）
  * - 增强选择器兼容性，适应网站最新结构
  * - 增加视频列表提取日志，方便调试
  * 
@@ -82,7 +87,7 @@ async function getTabs() {
     return tabs
 }
 
-// 浏览视频列表
+// 浏览视频列表 - 回退到简化版本
 async function getVideos(ext) {
     ext = argsify(ext)
     const { url, page = 1 } = ext
@@ -103,33 +108,27 @@ async function getVideos(ext) {
     })
     
     const $ = cheerio.load(data)
-    $print("页面加载完成，开始提取视频列表")
     
     // 视频列表
     let videos = []
-    let itemCount = 0
     
-    // 首先尝试提取电影卡片（v3版布局）
-    $('.movie-card, .box-item').each((_, element) => {
-        itemCount++;
-        const $box = $(element)
-        
+    // 提取视频元素 - 使用简单选择器
+    $('.box-item').each((_, element) => {
         try {
-            // 获取视频链接和标题（支持多种可能的结构）
-            let $link = $box.find('.detail a, .info a, .title a, h3 a')
-            if ($link.length === 0) {
-                $link = $box.find('a[title]')
-            }
+            const $box = $(element)
             
-            if ($link.length === 0) {
-                $print(`项目 #${itemCount} 未找到链接元素，跳过`)
-                return
-            }
+            // 获取链接和标题
+            const $link = $box.find('.detail a')
+            if ($link.length === 0) return
             
             const href = $link.attr('href')
-            const title = $link.text().trim() || $link.attr('title') || '未知标题'
+            const title = $link.text().trim()
             
-            // 从链接路径中提取视频ID
+            // 获取封面图
+            const $img = $box.find('img')
+            const pic = $img.attr('data-src') || $img.attr('src') || ''
+            
+            // 从链接中提取视频路径
             let videoPath = ''
             if (href) {
                 const pathMatch = href.match(/\/v\/([^\/\?]+)/)
@@ -138,186 +137,81 @@ async function getVideos(ext) {
                 }
             }
             
-            // 尝试从多个来源获取视频ID
-            let videoId = ''
-            
-            // 1. 从Favourite元素获取
-            const $fav = $box.find('.favourite, .fav')
-            if ($fav.length > 0) {
-                // 尝试多种属性
-                const vScope = $fav.attr('v-scope') || $fav.attr('data-args') || ''
-                const idMatch = vScope.match(/Favourite\(['"]\w+['"],\s*(\d+)/) || 
-                                vScope.match(/id['"]\s*:\s*['"]*(\d+)/)
-                if (idMatch && idMatch[1]) {
-                    videoId = idMatch[1]
-                } else {
-                    // 尝试从data-id属性提取
-                    videoId = $fav.attr('data-id') || ''
-                }
-            }
-            
-            // 2. 从data-id属性提取
-            if (!videoId) {
-                const $dataId = $box.find('[data-id]')
-                if ($dataId.length > 0) {
-                    videoId = $dataId.attr('data-id')
-                }
-            }
-            
-            // 获取视频封面图
-            let pic = ''
-            const $img = $box.find('img')
-            if ($img.length > 0) {
-                pic = $img.attr('data-src') || $img.attr('src') || ''
-            }
-            
-            // 如果没有图片，尝试从样式中提取
-            if (!pic) {
-                const $thumb = $box.find('.thumb, .image')
-                if ($thumb.length > 0) {
-                    const style = $thumb.attr('style') || ''
-                    const bgMatch = style.match(/url\(['"]?(.*?)['"]?\)/)
-                    if (bgMatch && bgMatch[1]) {
-                        pic = bgMatch[1]
-                    }
-                }
-            }
-            
-            // 提取视频代码
-            let code = ''
-            const codeMatch = title.match(/([A-Z0-9]+-\d+)/i)
-            if (codeMatch && codeMatch[1]) {
-                code = codeMatch[1]
-            }
-            
-            // 如果没有从标题中提取到代码，尝试从其他来源提取
-            if (!code) {
-                const $code = $box.find('.code, .number')
-                if ($code.length > 0) {
-                    code = $code.text().trim()
-                }
-            }
-            
             // 确保href为完整URL
-            let fullHref = ''
-            if (href) {
-                fullHref = href.startsWith('http') ? href :
-                           href.startsWith('/zh/') ? `${appConfig.site}${href}` :
-                           href.startsWith('/') ? `${appConfig.site}${href}` :
-                           `${appConfig.site}/zh/${href}`
-            } else if (videoPath) {
-                fullHref = `${appConfig.site}/zh/v/${videoPath}`
-            } else {
-                $print(`项目 #${itemCount} 无法构建URL，跳过`)
-                return
-            }
+            const fullHref = href.startsWith('http') ? href :
+                             href.startsWith('/') ? `${appConfig.site}${href}` :
+                             `${appConfig.site}/zh/${href}`
             
-            // 添加到视频列表
             videos.push({
                 title: title,
                 url: fullHref,
                 pic: pic,
                 extra: {
-                    code: code,
-                    videoId: videoId,
                     videoPath: videoPath
                 }
             })
-            
-            $print(`成功提取视频 #${videos.length}: ${title} (${fullHref})`)
         } catch (e) {
-            $print(`处理项目 #${itemCount} 时出错: ${e.message}`)
+            // 忽略单个视频的错误
         }
     })
     
-    $print(`共找到 ${itemCount} 个项目，成功提取 ${videos.length} 个视频`)
+    $print(`共找到${videos.length}个视频`)
     
-    // 如果没有找到视频，尝试使用更通用的选择器
+    // 如果上面的选择器没有找到视频，尝试使用另一种选择器
     if (videos.length === 0) {
-        $print("使用备用选择器尝试提取视频")
-        
-        // 尝试找到所有包含链接、图片的容器元素
-        $('div').each((_, div) => {
-            const $div = $(div)
-            const $links = $div.find('a[href*="/v/"]')
-            const $imgs = $div.find('img')
-            
-            if ($links.length > 0 && $imgs.length > 0) {
-                $links.each((_, link) => {
-                    try {
-                        const $link = $(link)
-                        const href = $link.attr('href')
-                        
-                        // 确保是视频链接
-                        if (!href || !href.includes('/v/')) return
-                        
-                        const title = $link.text().trim() || $link.attr('title') || '未知标题'
-                        
-                        // 提取视频路径
-                        const pathMatch = href.match(/\/v\/([^\/\?]+)/)
-                        if (!pathMatch || !pathMatch[1]) return
-                        
-                        const videoPath = pathMatch[1]
-                        
-                        // 查找最近的图片
-                        const $nearImg = $div.find('img').first()
-                        const pic = $nearImg.attr('data-src') || $nearImg.attr('src') || ''
-                        
-                        // 提取视频代码
-                        let code = ''
-                        const codeMatch = title.match(/([A-Z0-9]+-\d+)/i)
-                        if (codeMatch && codeMatch[1]) {
-                            code = codeMatch[1]
-                        }
-                        
-                        // 构建完整URL
-                        const fullHref = href.startsWith('http') ? href :
-                                        href.startsWith('/') ? `${appConfig.site}${href}` :
-                                        `${appConfig.site}/zh/${href}`
-                        
-                        videos.push({
-                            title: title,
-                            url: fullHref,
-                            pic: pic,
-                            extra: {
-                                code: code,
-                                videoPath: videoPath
-                            }
-                        })
-                        
-                        $print(`备用方法提取视频: ${title} (${fullHref})`)
-                    } catch (e) {
-                        // 忽略单个链接的错误
+        $('.movie-card').each((_, element) => {
+            try {
+                const $card = $(element)
+                
+                // 获取链接和标题
+                const $link = $card.find('a').first()
+                if (!$link.length) return
+                
+                const href = $link.attr('href')
+                if (!href) return
+                
+                const title = $link.attr('title') || $card.find('h3').text().trim() || '未知标题'
+                
+                // 获取封面图
+                const $img = $card.find('img')
+                const pic = $img.attr('data-src') || $img.attr('src') || ''
+                
+                // 从链接中提取视频路径
+                let videoPath = ''
+                if (href) {
+                    const pathMatch = href.match(/\/v\/([^\/\?]+)/)
+                    if (pathMatch && pathMatch[1]) {
+                        videoPath = pathMatch[1]
+                    }
+                }
+                
+                // 确保href为完整URL
+                const fullHref = href.startsWith('http') ? href :
+                                 href.startsWith('/') ? `${appConfig.site}${href}` :
+                                 `${appConfig.site}/zh/${href}`
+                
+                videos.push({
+                    title: title,
+                    url: fullHref,
+                    pic: pic,
+                    extra: {
+                        videoPath: videoPath
                     }
                 })
+            } catch (e) {
+                // 忽略单个视频的错误
             }
         })
         
-        $print(`备用方法共提取 ${videos.length} 个视频`)
+        $print(`使用备用选择器找到${videos.length}个视频`)
     }
     
     // 获取分页信息
     let total = 1
-    try {
-        // 尝试多种可能的分页格式
-        const paginationText = $('.pagination').text()
-        
-        // 查找"共X页"格式
-        const totalMatch = paginationText.match(/共(\d+)页/) || 
-                          paginationText.match(/(\d+)\s*页/) ||
-                          paginationText.match(/第.+?\/(\d+)页/)
-        
-        if (totalMatch && totalMatch[1]) {
-            total = parseInt(totalMatch[1])
-        } else {
-            // 如果没有找到明确的总页数，查找最后一个分页链接
-            const lastPage = $('.pagination a:not([rel="next"])').last().text()
-            if (lastPage && !isNaN(parseInt(lastPage))) {
-                total = parseInt(lastPage)
-            }
-        }
-    } catch (e) {
-        $print(`提取分页信息出错: ${e.message}`)
+    const paginationText = $('.pagination').text()
+    const totalMatch = paginationText.match(/共(\d+)页/)
+    if (totalMatch && totalMatch[1]) {
+        total = parseInt(totalMatch[1])
     }
     
     $print(`总页数: ${total}`)
