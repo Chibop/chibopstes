@@ -1,6 +1,7 @@
 /**
  * 123AV XPTV 扩展脚本
  * 基于czzy脚本风格重写
+ 版本 1
  */
 
 const cheerio = createCheerio()
@@ -186,71 +187,140 @@ async function getTracks(ext) {
     })
 }
 
+/**
+ * 优化javplayer.me播放链接处理
+ */
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     let url = ext.url
     const videoCode = ext.videoCode
     const referer = ext.referer || appConfig.site
-    const isJavPlayer = ext.isJavPlayer
+    const isJavPlayer = ext.isJavPlayer || url.includes('javplayer.me')
     
     $print("获取播放信息URL: " + url)
     
     // 处理javplayer.me的URL
-    if (isJavPlayer && url.includes('javplayer.me')) {
-        $print("处理javplayer链接")
+    if (isJavPlayer) {
+        $print("处理javplayer链接: " + url)
+        
+        // 转换javplayer URL格式 - 从/e/到/v/格式
+        // 例如从 https://javplayer.me/e/8J5DLZOK 转换为 https://javplayer.me/v/8J5DLZOK
+        if (url.includes('/e/')) {
+            url = url.replace('/e/', '/v/')
+            $print("转换为javplayer /v/ 格式: " + url)
+        }
         
         try {
-            // 获取javplayer页面内容
+            // 发送请求到javplayer获取视频数据
             const { data: playerData } = await $fetch.get(url, {
                 headers: {
                     'User-Agent': UA,
-                    'Referer': referer
+                    'Referer': referer,
+                    'sec-ch-ua': '"Google Chrome";v="118", "Chromium";v="118"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Windows"',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
                 }
             })
             
             const $player = cheerio.load(playerData)
+            let videoUrl = ''
             
-            // 查找直接的视频URL
-            const videoSrc = $player('video source').attr('src')
-            if (videoSrc) {
-                url = videoSrc
-                $print("从javplayer获取到video源: " + url)
-            } else {
-                // 从脚本中提取
-                const scripts = $player('script')
-                for (let i = 0; i < scripts.length; i++) {
-                    const script = $player(scripts[i]).html() || ''
+            // 方法1: 查找直接的m3u8链接
+            // 通常javplayer会在HTML中包含m3u8链接
+            const rawHtml = playerData.toString()
+            const m3u8Matches = rawHtml.match(/['"](https?:\/\/[^'"]+\.m3u8[^'"]*)['"]/ig)
+            if (m3u8Matches && m3u8Matches.length > 0) {
+                // 提取引号内的URL
+                const cleanUrl = m3u8Matches[0].replace(/['"]/g, '')
+                videoUrl = cleanUrl
+                $print("从HTML中提取m3u8链接: " + videoUrl)
+            }
+            
+            // 方法2: 查找video源
+            if (!videoUrl) {
+                const videoSrc = $player('video source').attr('src')
+                if (videoSrc) {
+                    videoUrl = videoSrc
+                    $print("从video标签获取源: " + videoUrl)
+                }
+            }
+            
+            // 方法3: 查找初始化变量
+            if (!videoUrl) {
+                // 查找类似 var video = {url:"https://..."}; 的模式
+                const videoVarMatch = rawHtml.match(/var\s+video\s*=\s*(\{[^}]+\})/i)
+                if (videoVarMatch && videoVarMatch[1]) {
+                    try {
+                        // 尝试解析JSON对象
+                        const videoObj = JSON.parse(videoVarMatch[1].replace(/'/g, '"'))
+                        if (videoObj && videoObj.url) {
+                            videoUrl = videoObj.url
+                            $print("从video变量获取URL: " + videoUrl)
+                        }
+                    } catch (e) {
+                        $print("解析video变量失败: " + e.message)
+                    }
+                }
+            }
+            
+            // 方法4: 从Rapidgator链接提取
+            if (!videoUrl) {
+                // 截图显示有Rapidgator链接，可能与实际视频相关
+                const rapidgatorMatch = rawHtml.match(/"(https:\/\/rapidgator\.net\/file\/[^"]+)"/i)
+                if (rapidgatorMatch && rapidgatorMatch[1]) {
+                    // 尝试从Rapidgator链接推导出视频URL
+                    const rapidUrl = rapidgatorMatch[1]
+                    $print("找到Rapidgator链接: " + rapidUrl)
                     
-                    // 尝试多种模式查找URL
-                    const patterns = [
-                        /source\s*=\s*['"](https?:\/\/[^'"]+)['"]/i,
-                        /src\s*=\s*['"](https?:\/\/[^'"]+)['"]/i,
-                        /file\s*:\s*['"](https?:\/\/[^'"]+)['"]/i,
-                        /['"](https?:\/\/[^'"]+\.m3u8[^'"]*)['"]/i
-                    ]
-                    
-                    for (const pattern of patterns) {
-                        const match = script.match(pattern)
-                        if (match && match[1]) {
-                            url = match[1]
-                            $print("从javplayer脚本中提取URL: " + url)
-                            break
+                    // 有些网站会将Rapidgator文件ID转换为视频URL
+                    const fileId = rapidUrl.split('/').pop()
+                    if (fileId) {
+                        // 尝试构造可能的视频URL
+                        const possibleUrls = [
+                            `https://stream.javplayer.me/stream/${fileId}.m3u8`,
+                            `https://cdn.javplayer.me/stream/${fileId}.m3u8`,
+                            `https://javplayer.me/stream/${fileId}.m3u8`
+                        ]
+                        
+                        // 依次尝试可能的URL
+                        for (const possibleUrl of possibleUrls) {
+                            try {
+                                $print("尝试推导的URL: " + possibleUrl)
+                                const { data: testData } = await $fetch.get(possibleUrl, {
+                                    headers: { 'User-Agent': UA, 'Referer': url }
+                                })
+                                
+                                // 检查是否是有效的m3u8内容
+                                if (typeof testData === 'string' && 
+                                    (testData.includes('#EXTM3U') || testData.startsWith('http'))) {
+                                    videoUrl = possibleUrl
+                                    $print("找到有效的m3u8地址: " + videoUrl)
+                                    break
+                                }
+                            } catch (e) {
+                                // 继续尝试下一个
+                            }
                         }
                     }
-                    
-                    if (url !== ext.url) break // 如果已找到新URL则跳出循环
                 }
+            }
+            
+            if (videoUrl) {
+                url = videoUrl
             }
         } catch (e) {
             $print("处理javplayer出错: " + e.message)
         }
     }
     
-    // 如果仍然没有找到视频URL，尝试再次请求AJAX接口
-    if (url === ext.url && videoCode) {
-        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoCode}/videos`
+    // 如果URL仍然是javplayer链接但无法提取实际视频，尝试再次请求原始API
+    if (url.includes('javplayer.me') && videoCode) {
+        $print("尝试再次请求原始API获取直接URL")
+        const ajaxUrl = `${appConfig.site}/zh/api/v/${videoCode}/play`
         try {
-            const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+            const { data: apiData } = await $fetch.get(ajaxUrl, {
                 headers: {
                     'User-Agent': UA,
                     'Referer': referer,
@@ -258,30 +328,36 @@ async function getPlayinfo(ext) {
                 }
             })
             
-            if (ajaxData && ajaxData.status === 200 && ajaxData.result && ajaxData.result.watch && ajaxData.result.watch.length > 0) {
-                url = ajaxData.result.watch[0].url
-                $print("再次从AJAX获取视频URL: " + url)
-                
-                // 递归处理javplayer URL
-                if (url.includes('javplayer.me')) {
-                    return getPlayinfo({
-                        ...ext,
-                        url: url,
-                        isJavPlayer: true
-                    })
-                }
+            if (apiData && apiData.url) {
+                url = apiData.url
+                $print("获取到直接播放URL: " + url)
             }
         } catch (e) {
-            $print("再次请求AJAX失败: " + e.message)
+            $print("API请求失败: " + e.message)
         }
     }
+    
+    // 确保最终URL是正确的格式
+    if (!url || url === ext.url || url.includes('javplayer.me/e/') || url.includes('javplayer.me/v/')) {
+        $print("警告: 未能获取到有效的播放URL，使用默认URL")
+        // 最后尝试直接构造可能的m3u8地址
+        if (url.includes('javplayer.me')) {
+            const playerCode = url.split('/').pop()
+            url = `https://stream.javplayer.me/stream/${playerCode}.m3u8`
+            $print("构造直接m3u8地址: " + url)
+        }
+    }
+    
+    $print("最终返回播放URL: " + url)
     
     return jsonify({ 
         urls: [url],
         headers: [{
             'User-Agent': UA, 
-            'Referer': referer,
-            'Origin': appConfig.site,
+            'Referer': url.includes('javplayer.me') ? 'https://javplayer.me/' : referer,
+            'Origin': url.includes('javplayer.me') ? 'https://javplayer.me' : appConfig.site,
+            'Accept': '*/*',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
             'Range': 'bytes=0-'
         }]
     })
