@@ -1,4 +1,12 @@
-
+/**
+ * 123AV XPTV 扩展脚本 v1.6.0
+ * 
+ * 更新日志:
+ * v1.6.0 - 2025-03-11
+ * - 重新引入getCards函数，解决分类页面视频列表加载问题
+ * - 改进URL构建逻辑，确保链接正确拼接
+ * - 保留AJAX API和javplayer解析的改进
+ */
 
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
@@ -67,8 +75,8 @@ async function getTabs() {
     ]
 }
 
-// 浏览视频列表 - 回退到老版本的简单逻辑
-async function getVideos(ext) {
+// 视频列表获取 - 使用老版本的getCards函数
+async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
@@ -95,13 +103,24 @@ async function getVideos(ext) {
         const remarks = $(element).find('.duration').text().trim()
         
         if (link && title) {
+            let fullUrl = ''
+            if (link.startsWith('http')) {
+                fullUrl = link
+            } else if (link.startsWith('/zh/')) {
+                fullUrl = `${appConfig.site}${link}`
+            } else if (link.startsWith('/')) {
+                fullUrl = `${appConfig.site}/zh${link}`
+            } else {
+                fullUrl = `${appConfig.site}/zh/${link}`
+            }
+            
             cards.push({
                 vod_id: link,
                 vod_name: title,
                 vod_pic: image,
                 vod_remarks: remarks,
                 ext: {
-                    url: `${appConfig.site}${link}`
+                    url: fullUrl
                 },
             })
         }
@@ -116,6 +135,11 @@ async function getVideos(ext) {
         list: cards,
         nextPage: hasNext ? page + 1 : null
     })
+}
+
+// 兼容性函数 - 将getCards暴露为getVideos，保持新版兼容性
+async function getVideos(ext) {
+    return await getCards(ext)
 }
 
 // 获取视频详情和播放列表
@@ -373,13 +397,24 @@ async function search(ext) {
         const remarks = $(element).find('.duration').text().trim()
         
         if (link && title) {
+            let fullUrl = ''
+            if (link.startsWith('http')) {
+                fullUrl = link
+            } else if (link.startsWith('/zh/')) {
+                fullUrl = `${appConfig.site}${link}`
+            } else if (link.startsWith('/')) {
+                fullUrl = `${appConfig.site}/zh${link}`
+            } else {
+                fullUrl = `${appConfig.site}/zh/${link}`
+            }
+            
             cards.push({
                 vod_id: link,
                 vod_name: title,
                 vod_pic: image,
                 vod_remarks: remarks,
                 ext: {
-                    url: `${appConfig.site}${link}`
+                    url: fullUrl
                 },
             })
         }
