@@ -1,7 +1,7 @@
 /**
  * 123AV XPTV 扩展脚本
  * 基于czzy脚本风格重写
- 版本 3
+ 版本 222
  */
 
 const cheerio = createCheerio()
@@ -21,45 +21,137 @@ async function getConfig() {
     return jsonify(config)
 }
 
+/**
+ * 动态获取网站导航标签
+ */
 async function getTabs() {
-    // 直接定义标签，也可以后续改为从网站动态获取
-    return [
-        {
-            name: '最近更新',
-            ext: {
-                url: `${appConfig.site}/zh/dm5`,
-                page: 1
-            },
-        },
-        {
-            name: '热门视频',
-            ext: {
-                url: `${appConfig.site}/zh/dm2/trending`,
-                page: 1
-            },
-        },
-        {
-            name: '今日热门',
-            ext: {
-                url: `${appConfig.site}/zh/dm2/today-hot`,
-                page: 1
-            },
-        },
-        {
-            name: '已审查',
-            ext: {
-                url: `${appConfig.site}/zh/dm2/censored`,
-                page: 1
-            },
-        },
-        {
-            name: '未审查',
-            ext: {
-                url: `${appConfig.site}/zh/dm3/uncensored`,
-                page: 1
-            },
+    const { data } = await $fetch.get(appConfig.site, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site
         }
-    ]
+    })
+    
+    $print("获取首页获取导航标签")
+    
+    const $ = cheerio.load(data)
+    let tabs = []
+    
+    try {
+        // 尝试提取侧边栏导航菜单
+        // 根据截图分析，导航菜单在侧边栏中
+        $('.sidebar a, .nav a').each((_, element) => {
+            const name = $(element).text().trim()
+            let link = $(element).attr('href')
+            
+            // 过滤无效链接和重复项
+            if (link && name && !link.includes('#') && !link.includes('javascript:') && link !== '/' && !tabs.some(tab => tab.name === name)) {
+                // 确保链接是绝对路径
+                let fullUrl = ''
+                if (link.startsWith('http')) {
+                    fullUrl = link
+                } else if (link.startsWith('/zh/')) {
+                    fullUrl = `${appConfig.site}${link}`
+                } else if (link.startsWith('/')) {
+                    fullUrl = `${appConfig.site}/zh${link}`
+                } else {
+                    fullUrl = `${appConfig.site}/zh/${link}`
+                }
+                
+                tabs.push({
+                    name: name,
+                    ext: {
+                        url: fullUrl,
+                        page: 1
+                    }
+                })
+            }
+        })
+    } catch (e) {
+        $print("动态提取导航失败: " + e.message)
+    }
+    
+    // 如果动态提取失败，使用备用方案获取主要分类
+    if (tabs.length < 3) {
+        $print("动态提取标签不足，尝试提取所有菜单项")
+        
+        // 更广泛的选择器，尝试获取所有可能的导航项
+        $('a').each((_, element) => {
+            const name = $(element).text().trim()
+            let link = $(element).attr('href')
+            
+            // 过滤有效的导航链接
+            if (link && name && name.length > 1 && name.length < 10 && 
+                !link.includes('#') && !link.includes('javascript:') && 
+                (link.includes('/zh/dm') || link.includes('/zh/v/') || link.includes('/category/')) && 
+                !tabs.some(tab => tab.name === name)) {
+                
+                let fullUrl = ''
+                if (link.startsWith('http')) {
+                    fullUrl = link
+                } else if (link.startsWith('/zh/')) {
+                    fullUrl = `${appConfig.site}${link}`
+                } else if (link.startsWith('/')) {
+                    fullUrl = `${appConfig.site}/zh${link}`
+                } else {
+                    fullUrl = `${appConfig.site}/zh/${link}`
+                }
+                
+                tabs.push({
+                    name: name,
+                    ext: {
+                        url: fullUrl,
+                        page: 1
+                    }
+                })
+            }
+        })
+    }
+    
+    // 如果还是失败，回退到默认标签
+    if (tabs.length < 3) {
+        $print("动态获取标签失败，使用默认标签")
+        tabs = [
+            {
+                name: '最近更新',
+                ext: {
+                    url: `${appConfig.site}/zh/dm5`,
+                    page: 1
+                },
+            },
+            {
+                name: '热门视频',
+                ext: {
+                    url: `${appConfig.site}/zh/dm2/trending`,
+                    page: 1
+                },
+            },
+            {
+                name: '今日热门',
+                ext: {
+                    url: `${appConfig.site}/zh/dm2/today-hot`,
+                    page: 1
+                },
+            },
+            {
+                name: '已审查',
+                ext: {
+                    url: `${appConfig.site}/zh/dm2/censored`,
+                    page: 1
+                },
+            },
+            {
+                name: '未审查',
+                ext: {
+                    url: `${appConfig.site}/zh/dm3/uncensored`,
+                    page: 1
+                },
+            }
+        ]
+    }
+    
+    $print(`获取到${tabs.length}个标签`)
+    return tabs
 }
 
 async function getCards(ext) {
