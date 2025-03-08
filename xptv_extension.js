@@ -1,12 +1,4 @@
-/**
- * 123AV XPTV 扩展脚本 v1.5.1
- * 1111
- * 更新日志:
- * v1.5.5 - 2025-03-11
- * - 回退到旧版本的视频列表爬取逻辑
- * - 保留新版本的AJAX视频解析改进
- * - 简化分类页面处理逻辑
- */
+
 
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
