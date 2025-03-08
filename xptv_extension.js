@@ -1,6 +1,7 @@
 /**
- * 123AV XPTV 扩展脚本1112
- * 基于czzy脚本风格重写 111 */
+ * 123AV XPTV 扩展脚本
+ * 基于czzy脚本风格重写
+ */
 
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
@@ -137,69 +138,35 @@ async function getTracks(ext) {
     const $ = cheerio.load(data)
     const title = $('h1.title').text().trim() || '默认标题'
     
-    // 提取视频代码(code)，通常为URL最后部分，如orecs-278
+    // 提取视频代码(code)
     const urlParts = url.split('/')
     const videoCode = urlParts[urlParts.length - 1]
     $print("视频代码: " + videoCode)
     
-    // 在页面中查找包含videos数据的脚本
-    let videoUrl = ''
-    let videoData = null
+    // 使用正确的AJAX接口获取视频信息
+    const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoCode}/videos`
+    $print("请求AJAX URL: " + ajaxUrl)
     
+    let videoUrl = ''
     try {
-        // 方法1: 查找windows.videos定义
-        const scripts = $('script')
-        for (let i = 0; i < scripts.length; i++) {
-            const scriptContent = $(scripts[i]).html() || ''
-            
-            // 查找window.videos
-            if (scriptContent.includes('window.videos')) {
-                const match = scriptContent.match(/window\.videos\s*=\s*(\[.*?\]);/s)
-                if (match && match[1]) {
-                    try {
-                        const videos = JSON.parse(match[1])
-                        if (videos && videos.length > 0) {
-                            videoData = videos[0]
-                            videoUrl = videos[0].url
-                            $print("从window.videos找到视频URL: " + videoUrl)
-                            break
-                        }
-                    } catch (e) {
-                        $print("解析videos失败: " + e.message)
-                    }
-                }
+        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': url,
+                'X-Requested-With': 'XMLHttpRequest'
             }
-        }
+        })
         
-        // 方法2: 如果没找到videos，尝试提取videojs的source
-        if (!videoUrl) {
-            const videoPlayerContainer = $('#player-container')
-            if (videoPlayerContainer.length > 0) {
-                const videoElement = videoPlayerContainer.find('video')
-                if (videoElement.length > 0) {
-                    const sourceElement = videoElement.find('source')
-                    if (sourceElement.length > 0) {
-                        videoUrl = sourceElement.attr('src')
-                        $print("从video标签获取URL: " + videoUrl)
-                    }
-                }
-            }
-        }
+        $print("获取到AJAX数据: " + JSON.stringify(ajaxData))
         
-        // 方法3: 查找iframe
-        if (!videoUrl) {
-            const iframe = $('iframe')
-            if (iframe.length > 0) {
-                const iframeSrc = iframe.attr('src')
-                if (iframeSrc) {
-                    $print("找到iframe: " + iframeSrc)
-                    videoUrl = iframeSrc // 将在getPlayinfo中处理iframe
-                }
-            }
+        // 从AJAX响应中提取视频URL
+        if (ajaxData && ajaxData.status === 200 && ajaxData.result && ajaxData.result.watch && ajaxData.result.watch.length > 0) {
+            videoUrl = ajaxData.result.watch[0].url
+            $print("从AJAX获取到视频URL: " + videoUrl)
         }
-        
     } catch (e) {
-        $print("提取视频信息错误: " + e.message)
+        $print("AJAX请求失败: " + e.message)
+        // 如果AJAX请求失败，尝试其他方法
     }
     
     // 返回播放信息
@@ -211,7 +178,8 @@ async function getTracks(ext) {
                 ext: {
                     url: videoUrl || url,
                     videoCode: videoCode,
-                    referer: url
+                    referer: url,
+                    isJavPlayer: videoUrl.includes('javplayer.me')
                 }
             }]
         }]
@@ -223,202 +191,89 @@ async function getPlayinfo(ext) {
     let url = ext.url
     const videoCode = ext.videoCode
     const referer = ext.referer || appConfig.site
+    const isJavPlayer = ext.isJavPlayer
     
     $print("获取播放信息URL: " + url)
     
-    // 如果URL为空或是原网页URL，尝试构建API地址
-    if (!url || url.includes('/zh/v/')) {
-        // 123AV网站可能的API格式
-        const apiUrls = [
-            `${appConfig.site}/zh/api/source/${videoCode}`,
-            `${appConfig.site}/zh/api/video/${videoCode}`,
-            `${appConfig.site}/zh/stream/${videoCode}`,
-            `${appConfig.site}/zh/player/${videoCode}`
-        ]
+    // 处理javplayer.me的URL
+    if (isJavPlayer && url.includes('javplayer.me')) {
+        $print("处理javplayer链接")
         
-        for (const apiUrl of apiUrls) {
-            $print("尝试API: " + apiUrl)
-            try {
-                const { data: apiData } = await $fetch.get(apiUrl, {
-                    headers: {
-                        'User-Agent': UA,
-                        'Referer': referer,
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                
-                // 处理API响应
-                if (typeof apiData === 'string') {
-                    // 如果返回是直接的URL
-                    if (apiData.trim().startsWith('http')) {
-                        url = apiData.trim()
-                        $print("API直接返回URL: " + url)
-                        break
-                    }
-                    
-                    // 尝试解析JSON
-                    try {
-                        const json = JSON.parse(apiData)
-                        if (json && json.data && json.data.file) {
-                            url = json.data.file
-                            $print("从API获取视频文件: " + url)
-                            break
-                        } else if (json && json.data && json.data.url) {
-                            url = json.data.url
-                            $print("从API获取视频URL: " + url)
-                            break
-                        } else if (json && json.url) {
-                            url = json.url
-                            $print("从API JSON获取URL: " + url)
-                            break
-                        } else if (json && json.source) {
-                            url = json.source
-                            $print("从API JSON获取source: " + url)
-                            break
-                        }
-                    } catch (e) {
-                        $print("解析API JSON失败: " + e.message)
-                    }
-                } else if (apiData) {
-                    // 如果返回已经是对象
-                    if (apiData.data && apiData.data.file) {
-                        url = apiData.data.file
-                        break
-                    } else if (apiData.data && apiData.data.url) {
-                        url = apiData.data.url
-                        break
-                    } else if (apiData.url) {
-                        url = apiData.url
-                        break
-                    }
-                }
-            } catch (e) {
-                $print("API请求失败: " + e.message)
-            }
-        }
-    }
-    
-    // 如果URL是iframe，处理iframe
-    if (url && (url.includes('/iframe/') || url.includes('/player/'))) {
         try {
-            const { data: iframeData } = await $fetch.get(url, {
+            // 获取javplayer页面内容
+            const { data: playerData } = await $fetch.get(url, {
                 headers: {
                     'User-Agent': UA,
                     'Referer': referer
                 }
             })
             
-            const $iframe = cheerio.load(iframeData)
+            const $player = cheerio.load(playerData)
             
-            // 查找iframe中的video标签
-            const video = $iframe('video')
-            if (video.length > 0) {
-                const source = video.find('source')
-                if (source.length > 0) {
-                    const src = source.attr('src')
-                    if (src) {
-                        url = src
-                        $print("从iframe视频标签获取源: " + url)
-                    }
-                }
-            }
-            
-            // 如果没找到，查找脚本
-            if (url.includes('/iframe/') || url.includes('/player/')) {
-                const scripts = $iframe('script')
-                let foundUrl = false
-                
-                for (let i = 0; i < scripts.length && !foundUrl; i++) {
-                    const script = $iframe(scripts[i]).html() || ''
+            // 查找直接的视频URL
+            const videoSrc = $player('video source').attr('src')
+            if (videoSrc) {
+                url = videoSrc
+                $print("从javplayer获取到video源: " + url)
+            } else {
+                // 从脚本中提取
+                const scripts = $player('script')
+                for (let i = 0; i < scripts.length; i++) {
+                    const script = $player(scripts[i]).html() || ''
                     
-                    // 查找常见的视频URL模式
+                    // 尝试多种模式查找URL
                     const patterns = [
-                        /source\s*:\s*['"](https?:\/\/[^'"]+)['"]/i,
-                        /url\s*:\s*['"](https?:\/\/[^'"]+)['"]/i,
+                        /source\s*=\s*['"](https?:\/\/[^'"]+)['"]/i,
+                        /src\s*=\s*['"](https?:\/\/[^'"]+)['"]/i,
                         /file\s*:\s*['"](https?:\/\/[^'"]+)['"]/i,
-                        /src\s*:\s*['"](https?:\/\/[^'"]+)['"]/i,
-                        /"(https?:\/\/[^"]+\.m3u8[^"]*)"/i,
-                        /"(https?:\/\/[^"]+\.mp4[^"]*)"/i
+                        /['"](https?:\/\/[^'"]+\.m3u8[^'"]*)['"]/i
                     ]
                     
                     for (const pattern of patterns) {
                         const match = script.match(pattern)
                         if (match && match[1]) {
                             url = match[1]
-                            $print("从iframe脚本提取URL: " + url)
-                            foundUrl = true
+                            $print("从javplayer脚本中提取URL: " + url)
                             break
                         }
                     }
                     
-                    // 查找JSON对象
-                    if (!foundUrl && script.includes('{') && script.includes('}')) {
-                        try {
-                            const jsonMatches = script.match(/(\{.*?\})/g)
-                            if (jsonMatches) {
-                                for (const jsonStr of jsonMatches) {
-                                    try {
-                                        const json = JSON.parse(jsonStr)
-                                        if (json.url) {
-                                            url = json.url
-                                            $print("从JSON对象获取URL: " + url)
-                                            foundUrl = true
-                                            break
-                                        } else if (json.file) {
-                                            url = json.file
-                                            $print("从JSON对象获取file: " + url)
-                                            foundUrl = true
-                                            break
-                                        } else if (json.source) {
-                                            url = json.source
-                                            $print("从JSON对象获取source: " + url)
-                                            foundUrl = true
-                                            break
-                                        }
-                                    } catch (e) {
-                                        // 继续尝试下一个可能的JSON
-                                    }
-                                }
-                            }
-                        } catch (e) {
-                            // 继续尝试
-                        }
-                    }
+                    if (url !== ext.url) break // 如果已找到新URL则跳出循环
                 }
             }
         } catch (e) {
-            $print("处理iframe出错: " + e.message)
+            $print("处理javplayer出错: " + e.message)
         }
     }
     
-    // 如果URL仍然是页面或iframe URL，尝试最后的m3u8格式
-    if (url && (url.includes('/zh/v/') || url.includes('/iframe/') || url.includes('/player/'))) {
-        // 尝试构造可能的m3u8直接地址
-        const m3u8Url = `${appConfig.site}/zh/stream/${videoCode}.m3u8`
-        $print("尝试直接m3u8地址: " + m3u8Url)
-        
+    // 如果仍然没有找到视频URL，尝试再次请求AJAX接口
+    if (url === ext.url && videoCode) {
+        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoCode}/videos`
         try {
-            const { data: m3u8Data } = await $fetch.get(m3u8Url, {
+            const { data: ajaxData } = await $fetch.get(ajaxUrl, {
                 headers: {
-                    'User-Agent': UA, 
-                    'Referer': referer
+                    'User-Agent': UA,
+                    'Referer': referer,
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
             
-            if (typeof m3u8Data === 'string' && 
-                (m3u8Data.includes('#EXTM3U') || m3u8Data.startsWith('http'))) {
-                url = m3u8Url
-                $print("找到有效的m3u8地址")
+            if (ajaxData && ajaxData.status === 200 && ajaxData.result && ajaxData.result.watch && ajaxData.result.watch.length > 0) {
+                url = ajaxData.result.watch[0].url
+                $print("再次从AJAX获取视频URL: " + url)
+                
+                // 递归处理javplayer URL
+                if (url.includes('javplayer.me')) {
+                    return getPlayinfo({
+                        ...ext,
+                        url: url,
+                        isJavPlayer: true
+                    })
+                }
             }
         } catch (e) {
-            $print("m3u8地址尝试失败")
+            $print("再次请求AJAX失败: " + e.message)
         }
-    }
-    
-    // 如果最终找不到有效的URL，使用原URL
-    if (!url) {
-        url = ext.url || referer
-        $print("未找到视频URL，使用原URL: " + url)
     }
     
     return jsonify({ 
