@@ -1,12 +1,4 @@
-/**请问
- * 123AV XPTV 扩展脚本 v1.6.0111
- * 
- * 更新日志:
- * v1.6.0 - 2025-03-11
- * - 重新引入getCards函数，解决分类页面视频列表加载问题
- * - 改进URL构建逻辑，确保链接正确拼接
- * - 保留AJAX API和javplayer解析的改进
- */
+
 
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
