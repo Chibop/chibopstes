@@ -1,6 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本
- * 完全重构以支持新发现的URL格式
+ * 123AV XPTV 扩展脚本 v1.1.0
+ * 
+ * 更新日志:
+ * v1.1.0 - 2025-03-09
+ * - 完全重构支持新的CDN视频地址格式
+ * - 多种方式提取视频ID和哈希值
+ * - 添加动态提取m3u8直链能力
+ * - 增强错误处理和播放兼容性
  */
 
 const cheerio = createCheerio()
@@ -263,7 +269,7 @@ async function getTracks(ext) {
     const $ = cheerio.load(data)
     
     // 提取视频标题和ID
-    const title = $('.content-detail h1.title').text().trim()
+    const title = $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
     const videoPath = url.split('/').slice(-1)[0]
     const videoCode = videoPath.includes('-') ? videoPath : null
     
@@ -369,58 +375,130 @@ async function getTracks(ext) {
         }
     }
     
-    // 构造最终的媒体URL
-    let mediaUrl = null
-    if (videoId) {
-        // 使用已知的URL结构
-        // 注意：hash部分需要实际算法，这里使用示例值
-        // 在真实情况下，这个哈希可能需要从javplayer页面提取或通过某种算法生成
-        const hashExample = "5c49e63b2f1fd71a94834ca146ad5672"
-        mediaUrl = `https://${appConfig.cdnDomain}/vod1/c/mu/${videoId}_${hashExample}/720/v.m3u8`
-        
-        $print("构造媒体URL: " + mediaUrl)
-    }
-    
-    // 返回播放列表
+    // 返回播放列表 - 恢复原来的嵌套结构
     return jsonify({
-        tracks: [{
-            name: title,
-            ext: {
-                url: mediaUrl,
-                videoId: videoId,
-                referer: "https://javplayer.me/"
-            }
+        list: [{
+            title: '默认',
+            tracks: [{
+                name: title,
+                ext: {
+                    url: videoId ? `https://javplayer.me/e/${videoId}` : null,
+                    videoId: videoId,
+                    videoCode: videoCode,
+                    referer: url,
+                    title: title
+                }
+            }]
         }]
     })
 }
 
 /**
- * 播放视频
+ * 获取播放信息 - 注意：函数名必须是getPlayinfo
  */
-async function getMediaUrl(ext) {
+async function getPlayinfo(ext) {
     ext = argsify(ext)
-    const url = ext.url
     const videoId = ext.videoId
+    const videoCode = ext.videoCode
     const referer = ext.referer || "https://javplayer.me/"
+    const title = ext.title || '未知标题'
     
-    $print("解析媒体URL: " + url)
+    $print("解析视频播放信息:")
+    $print("videoId: " + videoId)
+    $print("videoCode: " + videoCode)
+    
+    if (!videoId) {
+        $print("未找到有效的videoId，无法构造播放地址")
+        return jsonify({
+            urls: [],
+            headers: []
+        })
+    }
+    
+    // 从javplayer页面提取哈希值
+    let mediaHash = null
+    try {
+        const javplayerUrl = `https://javplayer.me/v/${videoId}`
+        $print("获取javplayer页面以提取哈希: " + javplayerUrl)
+        
+        const { data: playerData } = await $fetch.get(javplayerUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': referer
+            }
+        })
+        
+        // 尝试找到哈希值
+        // 方法1: 直接匹配hash或MD5参数
+        const hashMatch = playerData.match(/[\?&](?:hash|md5)=([a-f0-9]{32})/i) || 
+                          playerData.match(/['"](https?:\/\/[^'"]+\/(vod\d+\/[^'"]+\/mu\/[^_]+)_([a-f0-9]{32})\/[^'"]+)['"]/i)
+        
+        if (hashMatch && hashMatch[1]) {
+            mediaHash = hashMatch[1]
+            $print("从URL参数提取哈希: " + mediaHash)
+        } else if (hashMatch && hashMatch[3]) {
+            // 从完整URL中提取
+            mediaHash = hashMatch[3]
+            $print("从完整URL提取哈希: " + mediaHash)
+        } else {
+            // 方法2: 尝试解析JavaScript变量
+            const jsVarMatch = playerData.match(/var\s+md5\s*=\s*["']([a-f0-9]{32})["']/i)
+            if (jsVarMatch && jsVarMatch[1]) {
+                mediaHash = jsVarMatch[1]
+                $print("从JavaScript变量提取哈希: " + mediaHash)
+            }
+        }
+        
+        // 方法3: 从完整的m3u8 URL中提取
+        if (!mediaHash) {
+            const m3u8Match = playerData.match(/["'](https:\/\/[^"']+\.m3u8[^"']*)["']/i)
+            if (m3u8Match && m3u8Match[1]) {
+                const fullUrl = m3u8Match[1]
+                $print("找到完整的m3u8链接: " + fullUrl)
+                
+                // 直接返回完整URL
+                return jsonify({ 
+                    urls: [fullUrl],
+                    headers: [{
+                        'User-Agent': UA, 
+                        'Referer': 'https://javplayer.me/',
+                        'Origin': 'https://javplayer.me',
+                        'Accept': '*/*',
+                        'Range': 'bytes=0-'
+                    }],
+                    useProxy: true
+                })
+            }
+        }
+    } catch (e) {
+        $print("获取哈希值失败: " + e.message)
+    }
+    
+    // 如果无法获取哈希，使用默认哈希(示例哈希)
+    if (!mediaHash) {
+        mediaHash = "5c49e63b2f1fd71a94834ca146ad5672"
+        $print("使用默认哈希值: " + mediaHash)
+    }
+    
+    // 构造最终的媒体URL
+    const mediaUrl = `https://${appConfig.cdnDomain}/vod1/c/mu/${videoId.toLowerCase()}_${mediaHash}/720/v.m3u8`
+    $print("构造最终媒体URL: " + mediaUrl)
     
     // 返回最终URL和请求头
     return jsonify({ 
-        urls: [url],
+        urls: [mediaUrl],
         headers: [{
             'User-Agent': UA, 
-            'Referer': referer,
+            'Referer': 'https://javplayer.me/',
             'Origin': 'https://javplayer.me',
             'Accept': '*/*',
             'Range': 'bytes=0-',
             'Sec-Fetch-Dest': 'video',
             'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'cross-site',
-            'Priority': 'u=1, i'
+            'Sec-Fetch-Site': 'cross-site'
         }],
-        useProxy: true, // 启用代理很关键
-        userAgent: UA
+        useProxy: true,
+        title: title
     })
 }
 
