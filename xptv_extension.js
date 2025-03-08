@@ -1,7 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本 v1.5.3
+ * 123AV XPTV 扩展脚本 v1.5.4
  * 
  * 更新日志:
+ * v1.5.4 - 2025-03-11
+ * - 完全修复分类页面视频列表加载问题
+ * - 根据页面类型返回不同的数据结构
+ * - 优化分类页面的请求参数
+ * 
  * v1.5.3 - 2025-03-10
  * - 修复分类页面视频列表加载问题
  * - 添加更多分类标签支持
@@ -95,7 +100,7 @@ async function getTabs() {
     return tabs
 }
 
-// 浏览视频列表 - 支持多种页面结构
+// 浏览视频列表 - 针对分类页面进行特殊处理
 async function getVideos(ext) {
     ext = argsify(ext)
     const { url, page = 1 } = ext
@@ -106,6 +111,12 @@ async function getVideos(ext) {
     const isCategoryPage = url.includes('/categories/') || url.includes('/dm2/') || url.includes('/dm3/') || url.includes('/dm5/')
     $print(`页面类型: ${isCategoryPage ? '分类页面' : '普通页面'}`)
     
+    // 对分类页面使用特殊处理
+    if (isCategoryPage) {
+        return await getCategoryVideos(url, page)
+    }
+    
+    // 以下是普通页面的处理逻辑
     // 构建分页URL
     let pageUrl = url
     if (page > 1) {
@@ -282,8 +293,8 @@ async function getVideos(ext) {
         
         // 查找"共X页"格式
         const totalMatch = paginationText.match(/共(\d+)页/) || 
-                          paginationText.match(/(\d+)\s*页/) ||
-                          paginationText.match(/第.+?\/(\d+)页/)
+                           paginationText.match(/(\d+)\s*页/) ||
+                           paginationText.match(/第.+?\/(\d+)页/)
         
         if (totalMatch && totalMatch[1]) {
             total = parseInt(totalMatch[1])
@@ -312,6 +323,138 @@ async function getVideos(ext) {
         page: parseInt(page),
         pageCount: total,
         hasMore: page < total
+    })
+}
+
+// 专门处理分类页面的视频列表
+async function getCategoryVideos(url, page = 1) {
+    $print(`获取分类页面视频列表: ${url}, 页码: ${page}`)
+    
+    // 构建分页URL (简化处理)
+    let pageUrl = url
+    if (page > 1) {
+        pageUrl = url.includes('?') ? `${url}&page=${page}` : `${url}?page=${page}`
+    }
+    
+    $print("请求URL: " + pageUrl)
+    
+    const { data } = await $fetch.get(pageUrl, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site
+        }
+    })
+    
+    const $ = cheerio.load(data)
+    
+    // 使用与 getCards 类似的逻辑
+    let cards = []
+    
+    // 处理视频卡片
+    $('.box-item, .movie-card, .card').each((_, element) => {
+        try {
+            const $item = $(element)
+            
+            // 提取标题和链接
+            let title = ''
+            let link = ''
+            let image = ''
+            
+            // 尝试多种可能的选择器来获取链接和标题
+            const $link = $item.find('.detail a, .info a, h3 a, a[title]').first()
+            if ($link.length > 0) {
+                link = $link.attr('href')
+                title = $link.text().trim() || $link.attr('title') || ''
+            } else {
+                // 如果没有找到特定结构，尝试直接获取a标签
+                const $a = $item.find('a').first()
+                if ($a.length > 0) {
+                    link = $a.attr('href')
+                    title = $a.attr('title') || $a.text().trim() || ''
+                }
+            }
+            
+            // 如果仍未找到链接或标题，则跳过
+            if (!link || !title) return
+            
+            // 获取图片
+            const $img = $item.find('img')
+            if ($img.length > 0) {
+                image = $img.attr('data-src') || $img.attr('src') || ''
+            }
+            
+            // 获取备注信息(时长)
+            const remarks = $item.find('.duration').text().trim()
+            
+            // 确保链接是完整的URL
+            const fullLink = link.startsWith('http') ? link :
+                            link.startsWith('/') ? `${appConfig.site}${link}` :
+                            `${appConfig.site}/zh/${link}`
+            
+            // 使用兼容两种格式的数据结构
+            cards.push({
+                vod_id: link,
+                vod_name: title,
+                vod_pic: image,
+                vod_remarks: remarks,
+                title: title,
+                url: fullLink,
+                pic: image,
+                extra: {
+                    url: fullLink
+                }
+            })
+        } catch (e) {
+            // 忽略单个项目的错误
+        }
+    })
+    
+    $print(`找到 ${cards.length} 个视频卡片`)
+    
+    // 判断分页
+    let hasNext = false
+    let total = 1
+    
+    try {
+        // 检查是否有下一页
+        hasNext = $('.pagination .next, .pagination li:last-child:not(.disabled) a').length > 0
+        
+        // 尝试获取总页数
+        const paginationText = $('.pagination').text()
+        const totalMatch = paginationText.match(/共(\d+)页/) || 
+                          paginationText.match(/(\d+)\s*页/) ||
+                          paginationText.match(/第.+?\/(\d+)页/)
+        
+        if (totalMatch && totalMatch[1]) {
+            total = parseInt(totalMatch[1])
+        } else {
+            // 尝试从最后一个分页链接获取
+            const $lastPage = $('.pagination a:not(.next)').last()
+            if ($lastPage.length > 0) {
+                const lastText = $lastPage.text().trim()
+                if (lastText && !isNaN(parseInt(lastText))) {
+                    total = parseInt(lastText)
+                }
+            }
+        }
+        
+        // 如果没有找到明确的总页数，但有下一页
+        if (total <= 1 && hasNext) {
+            total = page + 1
+        }
+    } catch (e) {
+        $print("解析分页信息出错: " + e.message)
+    }
+    
+    $print(`总页数: ${total}, 是否有下一页: ${hasNext}`)
+    
+    // 返回兼容两种格式的结构
+    return jsonify({
+        list: cards,
+        page: parseInt(page),
+        pageCount: total,
+        hasMore: page < total,
+        nextPage: hasNext ? page + 1 : null
     })
 }
 
