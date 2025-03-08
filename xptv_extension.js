@@ -1,4 +1,17 @@
-
+/**
+ * 123AV XPTV 扩展脚本 v1.6.1
+ * 
+ * 更新日志:
+ * v1.6.1 - 2025-03-11
+ * - 恢复动态获取分类功能
+ * - 修复视频详情页播放按钮置灰无法点击的问题
+ * - 优化播放解析流程
+ * 
+ * v1.6.0 - 2025-03-11
+ * - 重新引入getCards函数，解决分类页面视频列表加载问题
+ * - 改进URL构建逻辑，确保链接正确拼接
+ * - 保留AJAX API和javplayer解析的改进
+ */
 
 const cheerio = createCheerio()
 const CryptoJS = createCryptoJS()
@@ -18,53 +31,57 @@ async function getConfig() {
     return jsonify(config)
 }
 
-// 获取网站导航
+// 获取网站导航 - 恢复动态获取功能
 async function getTabs() {
-    // 直接定义标签，也可以后续改为从网站动态获取
-    return [
-        {
-            name: '最近更新',
-            ext: {
-                url: `${appConfig.site}/zh/dm5`,
-                page: 1
-            },
-        },
-        {
-            name: '热门视频',
-            ext: {
-                url: `${appConfig.site}/zh/dm2/trending`,
-                page: 1
-            },
-        },
-        {
-            name: '今日热门',
-            ext: {
-                url: `${appConfig.site}/zh/dm2/today-hot`,
-                page: 1
-            },
-        },
-        {
-            name: '已审查',
-            ext: {
-                url: `${appConfig.site}/zh/dm2/censored`,
-                page: 1
-            },
-        },
-        {
-            name: '未审查',
-            ext: {
-                url: `${appConfig.site}/zh/dm3/uncensored`,
-                page: 1
-            },
-        },
-        {
-            name: '按类别',
-            ext: {
-                url: `${appConfig.site}/zh/categories`,
-                page: 1
-            },
+    const { data } = await $fetch.get(appConfig.site, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site
         }
-    ]
+    })
+    
+    $print("获取首页导航标签")
+    const $ = cheerio.load(data)
+    let tabs = []
+    
+    try {
+        // 获取导航菜单
+        $('#nav li a').each((_, element) => {
+            const name = $(element).text().trim()
+            const link = $(element).attr('href')
+            
+            if (link && name && !link.includes('javascript:') && !link.includes('#')) {
+                let fullUrl = link.startsWith('http') ? link : 
+                              link.startsWith('/zh/') ? `${appConfig.site}${link}` :
+                              link.startsWith('/') ? `${appConfig.site}/zh${link}` :
+                              `${appConfig.site}/zh/${link}`
+                
+                tabs.push({
+                    name: name,
+                    ext: {
+                        url: fullUrl,
+                        page: 1
+                    }
+                })
+            }
+        })
+    } catch (e) {
+        $print("动态提取导航失败: " + e.message)
+    }
+    
+    // 如果动态提取失败，使用静态配置
+    if (tabs.length < 3) {
+        tabs = [
+            { name: "最近更新", ext: { url: appConfig.site + "/zh/dm5", page: 1 } },
+            { name: "热门视频", ext: { url: appConfig.site + "/zh/dm2/trending", page: 1 } },
+            { name: "今日热门", ext: { url: appConfig.site + "/zh/dm2/today-hot", page: 1 } },
+            { name: "已审查", ext: { url: appConfig.site + "/zh/dm2/censored", page: 1 } },
+            { name: "未审查", ext: { url: appConfig.site + "/zh/dm3/uncensored", page: 1 } },
+            { name: "按类别", ext: { url: appConfig.site + "/zh/categories", page: 1 } }
+        ]
+    }
+    
+    return tabs
 }
 
 // 视频列表获取 - 使用老版本的getCards函数
@@ -134,7 +151,7 @@ async function getVideos(ext) {
     return await getCards(ext)
 }
 
-// 获取视频详情和播放列表
+// 获取视频详情和播放列表 - 修复播放按钮置灰问题
 async function getTracks(ext) {
     ext = argsify(ext)
     const { url } = ext
@@ -150,67 +167,32 @@ async function getTracks(ext) {
     
     const $ = cheerio.load(data)
     
-    // 提取视频标题和ID
+    // 提取视频标题
     const title = $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
     
     // 从URL提取视频路径
     const videoPath = url.split('/').slice(-1)[0]
     $print("视频路径: " + videoPath)
     
-    // 尝试从页面提取videoId (优先级高于URL)
-    let videoId = extractVideoId($, videoPath)
-    $print("视频ID: " + videoId)
-    
-    // 构建播放列表
+    // 构建播放列表 - 简化结构，解决播放按钮置灰问题
     let tracks = [
         {
-            name: "线路1",
-            list: [
-                {
-                    name: title,
-                    url: videoId || videoPath,
-                    extra: {
-                        videoPath: videoPath
-                    }
-                }
-            ]
+            name: title,
+            url: url,  // 直接传递原URL，让getPlayinfo处理解析
+            extra: {
+                videoPath: videoPath
+            }
         }
     ]
     
     return jsonify({
-        title: title,
-        tracks: tracks
-    })
-}
-
-// 从页面提取videoId
-function extractVideoId($, fallbackId) {
-    // 尝试从Favourite元素提取
-    const $fav = $('.favourite')
-    if ($fav.length > 0) {
-        const vScope = $fav.attr('v-scope')
-        if (vScope) {
-            const idMatch = vScope.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-            if (idMatch && idMatch[1]) {
-                return idMatch[1]
+        list: [
+            {
+                title: "默认线路",
+                tracks: tracks
             }
-        }
-    }
-    
-    // 从data-id属性提取
-    const $dataId = $('[data-id]')
-    if ($dataId.length > 0) {
-        return $dataId.attr('data-id')
-    }
-    
-    // 从script标签提取
-    const scriptContent = $('script:contains("movie_id")').text()
-    const scriptMatch = scriptContent.match(/movie_id\s*[:=]\s*['"]?(\d+)['"]?/)
-    if (scriptMatch && scriptMatch[1]) {
-        return scriptMatch[1]
-    }
-    
-    return fallbackId
+        ]
+    })
 }
 
 // 播放视频（获取最终播放地址）
@@ -260,7 +242,7 @@ async function getPlayinfo(ext) {
     })
 }
 
-// 从AJAX API获取javplayer链接
+// 从AJAX API获取javplayer链接 - 改进错误处理
 async function getJavplayerUrl(videoId, videoPath) {
     try {
         // 构建AJAX URL
