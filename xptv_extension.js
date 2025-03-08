@@ -1,12 +1,11 @@
 /**
- * 123AV XPTV 扩展脚本 v1.5.4113333211111
+ * 123AV XPTV 扩展脚本 v1.5.5
  * 
  * 更新日志:
- * v1.5.4 - 2025-03-11
- * - 完全修复分类页面视频列表加载问题
- * - 根据页面类型返回不同的数据结构
- * - 优化分类页面的请求参数
-
+ * v1.5.5 - 2025-03-11
+ * - 回退到旧版本的视频列表爬取逻辑
+ * - 保留新版本的AJAX视频解析改进
+ * - 简化分类页面处理逻辑
  */
 
 const cheerio = createCheerio()
@@ -29,411 +28,100 @@ async function getConfig() {
 
 // 获取网站导航
 async function getTabs() {
-    const { data } = await $fetch.get(appConfig.site, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
+    // 直接定义标签，也可以后续改为从网站动态获取
+    return [
+        {
+            name: '最近更新',
+            ext: {
+                url: `${appConfig.site}/zh/dm5`,
+                page: 1
+            },
+        },
+        {
+            name: '热门视频',
+            ext: {
+                url: `${appConfig.site}/zh/dm2/trending`,
+                page: 1
+            },
+        },
+        {
+            name: '今日热门',
+            ext: {
+                url: `${appConfig.site}/zh/dm2/today-hot`,
+                page: 1
+            },
+        },
+        {
+            name: '已审查',
+            ext: {
+                url: `${appConfig.site}/zh/dm2/censored`,
+                page: 1
+            },
+        },
+        {
+            name: '未审查',
+            ext: {
+                url: `${appConfig.site}/zh/dm3/uncensored`,
+                page: 1
+            },
+        },
+        {
+            name: '按类别',
+            ext: {
+                url: `${appConfig.site}/zh/categories`,
+                page: 1
+            },
         }
-    })
-    
-    $print("获取首页导航标签")
-    const $ = cheerio.load(data)
-    let tabs = []
-    
-    try {
-        // 获取导航菜单
-        $('#nav li a').each((_, element) => {
-            const name = $(element).text().trim()
-            const link = $(element).attr('href')
-            
-            if (link && name && !link.includes('javascript:') && !link.includes('#')) {
-                let fullUrl = link.startsWith('http') ? link : 
-                              link.startsWith('/zh/') ? `${appConfig.site}${link}` :
-                              link.startsWith('/') ? `${appConfig.site}/zh${link}` :
-                              `${appConfig.site}/zh/${link}`
-                
-                tabs.push({
-                    name: name,
-                    ext: {
-                        url: fullUrl,
-                        page: 1
-                    }
-                })
-            }
-        })
-    } catch (e) {
-        $print("动态提取导航失败: " + e.message)
-    }
-    
-    // 如果动态提取失败，使用静态配置，包含更多分类选项
-    if (tabs.length < 3) {
-        tabs = [
-            { name: "最新视频", ext: { url: appConfig.site + "/zh/movies/new-release", page: 1 } },
-            { name: "最热视频", ext: { url: appConfig.site + "/zh/movies/most-watched", page: 1 } },
-            { name: "今日热门", ext: { url: appConfig.site + "/zh/dm2/today-hot", page: 1 } },
-            { name: "已审查", ext: { url: appConfig.site + "/zh/dm2/censored", page: 1 } },
-            { name: "未审查", ext: { url: appConfig.site + "/zh/dm3/uncensored", page: 1 } },
-            { name: "按类别", ext: { url: appConfig.site + "/zh/categories", page: 1 } }
-        ]
-    }
-    
-    return tabs
+    ]
 }
 
-// 浏览视频列表 - 针对分类页面进行特殊处理
+// 浏览视频列表 - 回退到老版本的简单逻辑
 async function getVideos(ext) {
     ext = argsify(ext)
-    const { url, page = 1 } = ext
-    
-    $print(`获取视频列表页面: ${url}, 第${page}页`)
-    
-    // 检测是否为分类页面
-    const isCategoryPage = url.includes('/categories/') || url.includes('/dm2/') || url.includes('/dm3/') || url.includes('/dm5/')
-    $print(`页面类型: ${isCategoryPage ? '分类页面' : '普通页面'}`)
-    
-    // 对分类页面使用特殊处理
-    if (isCategoryPage) {
-        return await getCategoryVideos(url, page)
-    }
-    
-    // 以下是普通页面的处理逻辑
-    // 构建分页URL
-    let pageUrl = url
-    if (page > 1) {
-        pageUrl = url.includes('?') ? `${url}&page=${page}` : `${url}?page=${page}`
-    }
-    
-    const { data } = await $fetch.get(pageUrl, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
-        }
-    })
-    
-    const $ = cheerio.load(data)
-    
-    // 视频列表
-    let videos = []
-    
-    // 尝试不同的选择器模式 - 先尝试盒子样式
-    $('.box-item').each((_, element) => {
-        try {
-            const $box = $(element)
-            
-            // 尝试获取链接和标题
-            let $link = $box.find('.detail a')
-            if ($link.length === 0) {
-                $link = $box.find('a[title]')
-            }
-            
-            if ($link.length === 0) return
-            
-            const href = $link.attr('href')
-            const title = $link.text().trim() || $link.attr('title') || ''
-            
-            // 获取封面图
-            const $img = $box.find('img')
-            const pic = $img.attr('data-src') || $img.attr('src') || ''
-            
-            // 从链接中提取视频路径
-            let videoPath = ''
-            if (href) {
-                const pathMatch = href.match(/\/v\/([^\/\?]+)/)
-                if (pathMatch && pathMatch[1]) {
-                    videoPath = pathMatch[1]
-                }
-            }
-            
-            // 确保href为完整URL
-            const fullHref = href.startsWith('http') ? href :
-                             href.startsWith('/') ? `${appConfig.site}${href}` :
-                             `${appConfig.site}/zh/${href}`
-            
-            videos.push({
-                title: title,
-                url: fullHref,
-                pic: pic,
-                extra: {
-                    videoPath: videoPath
-                }
-            })
-        } catch (e) {
-            // 忽略单个视频的错误
-        }
-    })
-    
-    $print(`box-item选择器找到${videos.length}个视频`)
-    
-    // 如果上面的选择器没有找到视频，尝试电影卡片选择器
-    if (videos.length === 0) {
-        $('.movie-card').each((_, element) => {
-            try {
-                const $card = $(element)
-                
-                // 获取链接和标题
-                const $link = $card.find('a').first()
-                if (!$link.length) return
-                
-                const href = $link.attr('href')
-                if (!href) return
-                
-                const title = $link.attr('title') || $card.find('h3').text().trim() || '未知标题'
-                
-                // 获取封面图
-                const $img = $card.find('img')
-                const pic = $img.attr('data-src') || $img.attr('src') || ''
-                
-                // 从链接中提取视频路径
-                let videoPath = ''
-                if (href) {
-                    const pathMatch = href.match(/\/v\/([^\/\?]+)/)
-                    if (pathMatch && pathMatch[1]) {
-                        videoPath = pathMatch[1]
-                    }
-                }
-                
-                // 确保href为完整URL
-                const fullHref = href.startsWith('http') ? href :
-                                 href.startsWith('/') ? `${appConfig.site}${href}` :
-                                 `${appConfig.site}/zh/${href}`
-                
-                videos.push({
-                    title: title,
-                    url: fullHref,
-                    pic: pic,
-                    extra: {
-                        videoPath: videoPath
-                    }
-                })
-            } catch (e) {
-                // 忽略单个视频的错误
-            }
-        })
-        
-        $print(`movie-card选择器找到${videos.length}个视频`)
-    }
-    
-    // 如果还是没找到，尝试通用卡片选择器
-    if (videos.length === 0) {
-        $('[data-id], .thumb a, .item a').each((_, element) => {
-            try {
-                const $item = $(element)
-                const href = $item.attr('href')
-                if (!href || !href.includes('/v/')) return
-                
-                const title = $item.attr('title') || $item.text().trim() || '未知标题'
-                
-                // 查找关联的图片
-                let pic = ''
-                const $img = $item.find('img')
-                if ($img.length > 0) {
-                    pic = $img.attr('data-src') || $img.attr('src') || ''
-                } else {
-                    // 尝试在父元素中查找图片
-                    const $parentImg = $item.parent().find('img')
-                    if ($parentImg.length > 0) {
-                        pic = $parentImg.attr('data-src') || $parentImg.attr('src') || ''
-                    }
-                }
-                
-                // 从链接中提取视频路径
-                let videoPath = ''
-                const pathMatch = href.match(/\/v\/([^\/\?]+)/)
-                if (pathMatch && pathMatch[1]) {
-                    videoPath = pathMatch[1]
-                }
-                
-                // 确保href为完整URL
-                const fullHref = href.startsWith('http') ? href :
-                                href.startsWith('/') ? `${appConfig.site}${href}` :
-                                `${appConfig.site}/zh/${href}`
-                
-                videos.push({
-                    title: title,
-                    url: fullHref,
-                    pic: pic,
-                    extra: {
-                        videoPath: videoPath
-                    }
-                })
-            } catch (e) {
-                // 忽略单个视频的错误
-            }
-        })
-        
-        $print(`通用选择器找到${videos.length}个视频`)
-    }
-    
-    // 获取分页信息
-    let total = 1
-    
-    try {
-        // 尝试多种分页格式
-        const paginationText = $('.pagination').text()
-        
-        // 查找"共X页"格式
-        const totalMatch = paginationText.match(/共(\d+)页/) || 
-                           paginationText.match(/(\d+)\s*页/) ||
-                           paginationText.match(/第.+?\/(\d+)页/)
-        
-        if (totalMatch && totalMatch[1]) {
-            total = parseInt(totalMatch[1])
-        } else {
-            // 尝试从最后一个分页链接获取
-            const lastPageLink = $('.pagination a:not(.next):last').text()
-            if (lastPageLink && !isNaN(parseInt(lastPageLink))) {
-                total = parseInt(lastPageLink)
-            }
-        }
-        
-        // 如果还是没找到，检查是否有下一页按钮
-        if (total <= 1) {
-            if ($('.pagination .next').length > 0 && !$('.pagination .next').hasClass('disabled')) {
-                total = page + 1  // 至少有下一页
-            }
-        }
-    } catch (e) {
-        $print("解析分页信息出错: " + e.message)
-    }
-    
-    $print(`总页数: ${total}`)
-    
-    return jsonify({
-        list: videos,
-        page: parseInt(page),
-        pageCount: total,
-        hasMore: page < total
-    })
-}
-
-// 专门处理分类页面的视频列表
-async function getCategoryVideos(url, page = 1) {
-    $print(`获取分类页面视频列表: ${url}, 页码: ${page}`)
-    
-    // 构建分页URL (简化处理)
-    let pageUrl = url
-    if (page > 1) {
-        pageUrl = url.includes('?') ? `${url}&page=${page}` : `${url}?page=${page}`
-    }
-    
-    $print("请求URL: " + pageUrl)
-    
-    const { data } = await $fetch.get(pageUrl, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
-        }
-    })
-    
-    const $ = cheerio.load(data)
-    
-    // 使用与 getCards 类似的逻辑
     let cards = []
-    
-    // 处理视频卡片
-    $('.box-item, .movie-card, .card').each((_, element) => {
-        try {
-            const $item = $(element)
-            
-            // 提取标题和链接
-            let title = ''
-            let link = ''
-            let image = ''
-            
-            // 尝试多种可能的选择器来获取链接和标题
-            const $link = $item.find('.detail a, .info a, h3 a, a[title]').first()
-            if ($link.length > 0) {
-                link = $link.attr('href')
-                title = $link.text().trim() || $link.attr('title') || ''
-            } else {
-                // 如果没有找到特定结构，尝试直接获取a标签
-                const $a = $item.find('a').first()
-                if ($a.length > 0) {
-                    link = $a.attr('href')
-                    title = $a.attr('title') || $a.text().trim() || ''
-                }
-            }
-            
-            // 如果仍未找到链接或标题，则跳过
-            if (!link || !title) return
-            
-            // 获取图片
-            const $img = $item.find('img')
-            if ($img.length > 0) {
-                image = $img.attr('data-src') || $img.attr('src') || ''
-            }
-            
-            // 获取备注信息(时长)
-            const remarks = $item.find('.duration').text().trim()
-            
-            // 确保链接是完整的URL
-            const fullLink = link.startsWith('http') ? link :
-                            link.startsWith('/') ? `${appConfig.site}${link}` :
-                            `${appConfig.site}/zh/${link}`
-            
-            // 使用兼容两种格式的数据结构
+    let { page = 1, url } = ext
+
+    if (page > 1) {
+        url += `?page=${page}`
+    }
+
+    $print("请求URL: " + url)
+
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site
+        },
+    })
+
+    const $ = cheerio.load(data)
+
+    $('.box-item').each((_, element) => {
+        const title = $(element).find('.detail a').text().trim()
+        const link = $(element).find('.detail a').attr('href')
+        const image = $(element).find('.thumb img').attr('data-src') || $(element).find('.thumb img').attr('src')
+        const remarks = $(element).find('.duration').text().trim()
+        
+        if (link && title) {
             cards.push({
                 vod_id: link,
                 vod_name: title,
                 vod_pic: image,
                 vod_remarks: remarks,
-                title: title,
-                url: fullLink,
-                pic: image,
-                extra: {
-                    url: fullLink
-                }
+                ext: {
+                    url: `${appConfig.site}${link}`
+                },
             })
-        } catch (e) {
-            // 忽略单个项目的错误
         }
     })
+
+    $print("找到卡片数量: " + cards.length)
     
-    $print(`找到 ${cards.length} 个视频卡片`)
+    // 处理分页
+    const hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
     
-    // 判断分页
-    let hasNext = false
-    let total = 1
-    
-    try {
-        // 检查是否有下一页
-        hasNext = $('.pagination .next, .pagination li:last-child:not(.disabled) a').length > 0
-        
-        // 尝试获取总页数
-        const paginationText = $('.pagination').text()
-        const totalMatch = paginationText.match(/共(\d+)页/) || 
-                          paginationText.match(/(\d+)\s*页/) ||
-                          paginationText.match(/第.+?\/(\d+)页/)
-        
-        if (totalMatch && totalMatch[1]) {
-            total = parseInt(totalMatch[1])
-        } else {
-            // 尝试从最后一个分页链接获取
-            const $lastPage = $('.pagination a:not(.next)').last()
-            if ($lastPage.length > 0) {
-                const lastText = $lastPage.text().trim()
-                if (lastText && !isNaN(parseInt(lastText))) {
-                    total = parseInt(lastText)
-                }
-            }
-        }
-        
-        // 如果没有找到明确的总页数，但有下一页
-        if (total <= 1 && hasNext) {
-            total = page + 1
-        }
-    } catch (e) {
-        $print("解析分页信息出错: " + e.message)
-    }
-    
-    $print(`总页数: ${total}, 是否有下一页: ${hasNext}`)
-    
-    // 返回兼容两种格式的结构
     return jsonify({
         list: cards,
-        page: parseInt(page),
-        pageCount: total,
-        hasMore: page < total,
         nextPage: hasNext ? page + 1 : null
     })
 }
@@ -443,13 +131,13 @@ async function getTracks(ext) {
     ext = argsify(ext)
     const { url } = ext
     
-    $print("获取视频详情: " + url)
+    $print("获取播放列表URL: " + url)
     
     const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
             'Referer': appConfig.site
-        }
+        },
     })
     
     const $ = cheerio.load(data)
@@ -665,4 +353,53 @@ async function getM3u8FromJavplayer(javplayerUrl) {
         $print("请求javplayer页面失败: " + e.message)
         return null
     }
+}
+
+// 搜索功能
+async function search(ext) {
+    ext = argsify(ext)
+    let cards = []
+    const { wd, page = 1 } = ext
+    
+    // 构建搜索URL
+    const searchUrl = `${appConfig.site}/zh/search?q=${encodeURIComponent(wd)}&page=${page}`
+    $print("搜索URL: " + searchUrl)
+    
+    const { data } = await $fetch.get(searchUrl, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site
+        },
+    })
+    
+    const $ = cheerio.load(data)
+    
+    $('.box-item').each((_, element) => {
+        const title = $(element).find('.detail a').text().trim()
+        const link = $(element).find('.detail a').attr('href')
+        const image = $(element).find('.thumb img').attr('data-src') || $(element).find('.thumb img').attr('src')
+        const remarks = $(element).find('.duration').text().trim()
+        
+        if (link && title) {
+            cards.push({
+                vod_id: link,
+                vod_name: title,
+                vod_pic: image,
+                vod_remarks: remarks,
+                ext: {
+                    url: `${appConfig.site}${link}`
+                },
+            })
+        }
+    })
+    
+    $print("搜索结果数量: " + cards.length)
+    
+    // 处理分页
+    const hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
+    
+    return jsonify({
+        list: cards,
+        nextPage: hasNext ? page + 1 : null
+    })
 } 
