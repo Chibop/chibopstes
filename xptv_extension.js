@@ -1,7 +1,21 @@
 /**
- * 123AV XPTV 扩展脚本 v1.5.212333334
+ * 123AV XPTV 扩展脚本 v1.5.3
  * 
  * 更新日志:
+ * v1.5.3 - 2025-03-10
+ * - 修复分类页面视频列表加载问题
+ * - 添加更多分类标签支持
+ * - 改进分类页URL构建逻辑
+ * 
+ * v1.5.2 - 2025-03-10
+ * - 修复视频列表无法显示的问题
+ * - 回退到简化版的视频列表解析逻辑
+ * - 保留AJAX API视频解析的改进
+ * 
+ * v1.5.1 - 2025-03-10
+ * - 修复视频列表无法显示的问题（未成功）
+ * - 增强选择器兼容性，适应网站最新结构
+ * - 增加视频列表提取日志，方便调试
  * 
  * v1.5.0 - 2025-03-10
  * - 基于AJAX API完全重构，大幅简化解析逻辑
@@ -66,11 +80,14 @@ async function getTabs() {
         $print("动态提取导航失败: " + e.message)
     }
     
-    // 如果动态提取失败，使用静态配置
+    // 如果动态提取失败，使用静态配置，包含更多分类选项
     if (tabs.length < 3) {
         tabs = [
             { name: "最新视频", ext: { url: appConfig.site + "/zh/movies/new-release", page: 1 } },
             { name: "最热视频", ext: { url: appConfig.site + "/zh/movies/most-watched", page: 1 } },
+            { name: "今日热门", ext: { url: appConfig.site + "/zh/dm2/today-hot", page: 1 } },
+            { name: "已审查", ext: { url: appConfig.site + "/zh/dm2/censored", page: 1 } },
+            { name: "未审查", ext: { url: appConfig.site + "/zh/dm3/uncensored", page: 1 } },
             { name: "按类别", ext: { url: appConfig.site + "/zh/categories", page: 1 } }
         ]
     }
@@ -78,12 +95,16 @@ async function getTabs() {
     return tabs
 }
 
-// 浏览视频列表 - 回退到简化版本
+// 浏览视频列表 - 支持多种页面结构
 async function getVideos(ext) {
     ext = argsify(ext)
     const { url, page = 1 } = ext
     
     $print(`获取视频列表页面: ${url}, 第${page}页`)
+    
+    // 检测是否为分类页面
+    const isCategoryPage = url.includes('/categories/') || url.includes('/dm2/') || url.includes('/dm3/') || url.includes('/dm5/')
+    $print(`页面类型: ${isCategoryPage ? '分类页面' : '普通页面'}`)
     
     // 构建分页URL
     let pageUrl = url
@@ -103,17 +124,21 @@ async function getVideos(ext) {
     // 视频列表
     let videos = []
     
-    // 提取视频元素 - 使用简单选择器
+    // 尝试不同的选择器模式 - 先尝试盒子样式
     $('.box-item').each((_, element) => {
         try {
             const $box = $(element)
             
-            // 获取链接和标题
-            const $link = $box.find('.detail a')
+            // 尝试获取链接和标题
+            let $link = $box.find('.detail a')
+            if ($link.length === 0) {
+                $link = $box.find('a[title]')
+            }
+            
             if ($link.length === 0) return
             
             const href = $link.attr('href')
-            const title = $link.text().trim()
+            const title = $link.text().trim() || $link.attr('title') || ''
             
             // 获取封面图
             const $img = $box.find('img')
@@ -146,9 +171,9 @@ async function getVideos(ext) {
         }
     })
     
-    $print(`共找到${videos.length}个视频`)
+    $print(`box-item选择器找到${videos.length}个视频`)
     
-    // 如果上面的选择器没有找到视频，尝试使用另一种选择器
+    // 如果上面的选择器没有找到视频，尝试电影卡片选择器
     if (videos.length === 0) {
         $('.movie-card').each((_, element) => {
             try {
@@ -194,15 +219,90 @@ async function getVideos(ext) {
             }
         })
         
-        $print(`使用备用选择器找到${videos.length}个视频`)
+        $print(`movie-card选择器找到${videos.length}个视频`)
+    }
+    
+    // 如果还是没找到，尝试通用卡片选择器
+    if (videos.length === 0) {
+        $('[data-id], .thumb a, .item a').each((_, element) => {
+            try {
+                const $item = $(element)
+                const href = $item.attr('href')
+                if (!href || !href.includes('/v/')) return
+                
+                const title = $item.attr('title') || $item.text().trim() || '未知标题'
+                
+                // 查找关联的图片
+                let pic = ''
+                const $img = $item.find('img')
+                if ($img.length > 0) {
+                    pic = $img.attr('data-src') || $img.attr('src') || ''
+                } else {
+                    // 尝试在父元素中查找图片
+                    const $parentImg = $item.parent().find('img')
+                    if ($parentImg.length > 0) {
+                        pic = $parentImg.attr('data-src') || $parentImg.attr('src') || ''
+                    }
+                }
+                
+                // 从链接中提取视频路径
+                let videoPath = ''
+                const pathMatch = href.match(/\/v\/([^\/\?]+)/)
+                if (pathMatch && pathMatch[1]) {
+                    videoPath = pathMatch[1]
+                }
+                
+                // 确保href为完整URL
+                const fullHref = href.startsWith('http') ? href :
+                                href.startsWith('/') ? `${appConfig.site}${href}` :
+                                `${appConfig.site}/zh/${href}`
+                
+                videos.push({
+                    title: title,
+                    url: fullHref,
+                    pic: pic,
+                    extra: {
+                        videoPath: videoPath
+                    }
+                })
+            } catch (e) {
+                // 忽略单个视频的错误
+            }
+        })
+        
+        $print(`通用选择器找到${videos.length}个视频`)
     }
     
     // 获取分页信息
     let total = 1
-    const paginationText = $('.pagination').text()
-    const totalMatch = paginationText.match(/共(\d+)页/)
-    if (totalMatch && totalMatch[1]) {
-        total = parseInt(totalMatch[1])
+    
+    try {
+        // 尝试多种分页格式
+        const paginationText = $('.pagination').text()
+        
+        // 查找"共X页"格式
+        const totalMatch = paginationText.match(/共(\d+)页/) || 
+                          paginationText.match(/(\d+)\s*页/) ||
+                          paginationText.match(/第.+?\/(\d+)页/)
+        
+        if (totalMatch && totalMatch[1]) {
+            total = parseInt(totalMatch[1])
+        } else {
+            // 尝试从最后一个分页链接获取
+            const lastPageLink = $('.pagination a:not(.next):last').text()
+            if (lastPageLink && !isNaN(parseInt(lastPageLink))) {
+                total = parseInt(lastPageLink)
+            }
+        }
+        
+        // 如果还是没找到，检查是否有下一页按钮
+        if (total <= 1) {
+            if ($('.pagination .next').length > 0 && !$('.pagination .next').hasClass('disabled')) {
+                total = page + 1  // 至少有下一页
+            }
+        }
+    } catch (e) {
+        $print("解析分页信息出错: " + e.message)
     }
     
     $print(`总页数: ${total}`)
@@ -298,9 +398,10 @@ function extractVideoId($, fallbackId) {
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     const url = ext.url
-    const videoPath = ext.extra?.videoPath || url
+    const videoPath = ext.extra?.videoPath || url.split('/').pop()
     
     $print("开始解析媒体地址: " + url)
+    $print("视频路径: " + videoPath)
     
     // Step 1: 尝试使用AJAX API获取javplayer链接
     let javplayerUrl = await getJavplayerUrl(url, videoPath)
