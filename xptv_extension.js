@@ -1,7 +1,7 @@
 /**
  * 123AV XPTV 扩展脚本
  * 基于czzy脚本风格重写
- 版本 2
+ 版本 3
  */
 
 const cheerio = createCheerio()
