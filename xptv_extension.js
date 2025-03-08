@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.6.0
+ * 123AV XPTV 扩展脚本 v1.6.0111
  * 
  * 更新日志:
  * v1.6.0 - 2025-03-11
@@ -335,8 +335,6 @@ async function getM3u8FromJavplayer(javplayerUrl) {
                 // 尝试不同的CDN域名和路径组合
                 const domains = [
                     's210.skyearth9.xyz',
-                    's209.skyearth9.xyz',
-                    's208.skyearth9.xyz',
                     's208.skyearth7.xyz'
                 ]
                 
