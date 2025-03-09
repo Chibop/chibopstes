@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.6.3
+ * 123AV XPTV 扩展脚本 v1.6.4
  * 
  * 更新日志:
  * v1.6.2 - 2025-03-11
@@ -318,33 +318,39 @@ async function getPlayinfo(ext) {
     })
 }
 
-// 从AJAX API获取javplayer链接
+// 从AJAX API获取javplayer URL
 async function getJavplayerUrl(videoId, videoPath) {
     try {
-        // 构建AJAX URL
-        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
-        $print("发送AJAX请求: " + ajaxUrl)
+        // 正确使用视频ID构建AJAX URL
+        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
+        $print("请求AJAX API: " + ajaxUrl)
         
-        const { data } = await $fetch.get(ajaxUrl, {
+        const { data: responseData } = await $fetch.get(ajaxUrl, {
             headers: {
                 'User-Agent': UA,
                 'Referer': `${appConfig.site}/zh/v/${videoPath}`,
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
+                'X-Requested-With': 'XMLHttpRequest'
             }
         })
         
-        $print("AJAX响应: " + JSON.stringify(data).substring(0, 100) + "...")
-        
-        // 检查是否有watch数组且不为空
-        if (data && data.status === 200 && data.result && data.result.watch && data.result.watch.length > 0) {
-            return data.result.watch[0].url
+        if (responseData && responseData.status === 200 && responseData.result) {
+            const { watch } = responseData.result
+            
+            // 检查watch数组是否存在且非空
+            if (watch && watch.length > 0) {
+                const firstSource = watch[0]
+                if (firstSource && firstSource.url) {
+                    return firstSource.url
+                }
+            }
+            $print("AJAX响应中没有找到有效的watch数组")
+        } else {
+            $print("AJAX响应无效或状态码非200")
         }
         
-        $print("AJAX响应中没有找到watch数组或为空")
         return null
     } catch (e) {
-        $print("AJAX请求失败: " + e.message)
+        $print("获取javplayer URL失败: " + e.message)
         return null
     }
 }
