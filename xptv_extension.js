@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.6.2
+ * 123AV XPTV 扩展脚本 v1.6.3
  * 
  * 更新日志:
  * v1.6.2 - 2025-03-11
@@ -349,118 +349,47 @@ async function getJavplayerUrl(videoId, videoPath) {
     }
 }
 
-// 从javplayer获取m3u8 URL - 修复链接处理逻辑
+// 从javplayer获取m3u8 URL - 更精确的提取方法
 async function getM3u8FromJavplayer(javplayerUrl) {
     try {
         $print("请求javplayer页面: " + javplayerUrl)
         
-        // 重要修复：不再自动替换/e/为/v/，先尝试原始URL
-        let playerUrl = javplayerUrl
-        let response
+        const { data } = await $fetch.get(javplayerUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': 'https://123av.com/'
+            }
+        })
         
-        try {
-            // 先尝试原始URL
-            response = await $fetch.get(playerUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    'Referer': appConfig.site
-                }
-            })
-            
-            if (response.code !== 200) {
-                throw new Error("请求失败，状态码: " + response.code)
-            }
-        } catch (e) {
-            $print("请求原始URL失败，尝试替换URL: " + e.message)
-            
-            // 如果原始URL失败，尝试替换
-            if (playerUrl.includes('/e/')) {
-                playerUrl = playerUrl.replace('/e/', '/v/')
-                $print("尝试替换URL: " + playerUrl)
-                
-                response = await $fetch.get(playerUrl, {
-                    headers: {
-                        'User-Agent': UA,
-                        'Referer': appConfig.site
-                    }
-                })
-            } else if (playerUrl.includes('/v/')) {
-                playerUrl = playerUrl.replace('/v/', '/e/')
-                $print("尝试替换URL: " + playerUrl)
-                
-                response = await $fetch.get(playerUrl, {
-                    headers: {
-                        'User-Agent': UA,
-                        'Referer': appConfig.site
-                    }
-                })
-            } else {
-                throw e  // 如果不包含/e/或/v/，重新抛出原始错误
-            }
+        // 方法1: 精确匹配&quot;stream&quot;格式(处理HTML实体)
+        const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/);
+        if (quotMatch && quotMatch[1]) {
+            const m3u8Url = quotMatch[1].replace(/\\\//g, '/');
+            $print("从&quot;实体中提取到stream URL: " + m3u8Url);
+            return m3u8Url;
         }
         
-        const data = response.data
-        $print("javplayer页面大小: " + data.length)
-        
-        // 从页面中提取m3u8地址
-        const m3u8Match = data.match(/source\s+src="(https:\/\/[^"]+\.m3u8[^"]*)/i) || 
-                         data.match(/['"](https:\/\/[^"']+\.m3u8[^"']*)['"]/i)
-                         
-        if (m3u8Match && m3u8Match[1]) {
-            return m3u8Match[1]
+        // 方法2: 匹配普通JSON格式(如果HTML实体已被解析)
+        const jsonMatch = data.match(/"stream"\s*:\s*"(.*?)"/);
+        if (jsonMatch && jsonMatch[1]) {
+            const m3u8Url = jsonMatch[1].replace(/\\\//g, '/');
+            $print("从JSON格式提取到stream URL: " + m3u8Url);
+            return m3u8Url;
         }
         
-        // 如果没有直接找到，尝试从vkey构建
-        const playerCode = playerUrl.split('/').pop()
-        const vkeyMatch = data.match(/vkey\s*=\s*['"]([^'"]+)['"]/i)
-        
-        if (vkeyMatch && vkeyMatch[1]) {
-            const vkey = vkeyMatch[1]
-            $print("找到vkey: " + vkey)
-            
-            // 检查是否是 videoId_hash 格式
-            if (vkey.includes('_')) {
-                // 尝试不同的CDN域名
-                const domains = [
-                    's210.skyearth9.xyz',
-                    's208.skyearth7.xyz',
-                    's207.skyearth7.xyz',  // 新增备用域名
-                    's206.skyearth7.xyz'   // 新增备用域名
-                ]
-                
-                for (const domain of domains) {
-                    // 尝试不同的分辨率
-                    const resolutions = ['720', '480', '360']
-                    
-                    for (const resolution of resolutions) {
-                        const m3u8Url = `https://${domain}/vod1/a/bl/${vkey}/${resolution}/v.m3u8`
-                        $print(`尝试构造URL[${domain}/${resolution}]: ${m3u8Url}`)
-                        
-                        try {
-                            const { code } = await $fetch.head(m3u8Url, {
-                                headers: {
-                                    'User-Agent': UA,
-                                    'Referer': 'https://javplayer.me/'
-                                }
-                            })
-                            
-                            if (code === 200) {
-                                $print("找到可用的m3u8 URL")
-                                return m3u8Url
-                            }
-                        } catch (e) {
-                            // 继续尝试下一个组合
-                        }
-                    }
-                }
-            }
+        // 方法3: 直接查找任何m3u8地址
+        const urlMatch = data.match(/https:\/\/[^"'\s]+\.m3u8/);
+        if (urlMatch) {
+            $print("直接找到m3u8 URL: " + urlMatch[0]);
+            return urlMatch[0];
         }
         
-        $print("无法从javplayer页面提取m3u8链接")
-        return null
+        $print("未能从页面提取到m3u8地址");
+        $print("页面内容片段: " + data.substring(0, 200) + "...");
+        return null;
     } catch (e) {
-        $print("处理javplayer页面失败: " + e.message)
-        return null
+        $print("解析javplayer页面失败: " + e.message);
+        return null;
     }
 }
 
