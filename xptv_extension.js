@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.5
+ * 123AV XPTV 扩展脚本 v1.8.6
  * 
  * 更新日志:
  * v1.8.5 - 2025-03-11
@@ -234,28 +234,17 @@ async function getTracks(ext) {
     })
 }
 
-// 播放视频解析 (保持原有实现)
+// 播放视频解析 (修复参数传递)
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     const url = ext.url
     
-    // 判断是否已经是AJAX URL
-    const isAjaxUrl = url.includes('/ajax/v/')
+    // 关键修复：正确获取传递的videoId和videoPath
+    let videoPath = ext.extra?.videoPath
+    let videoId = ext.extra?.videoId
     
-    let videoPath, videoId
-    
-    if (isAjaxUrl) {
-        // 直接从AJAX URL提取videoId
-        const idMatch = url.match(/\/ajax\/v\/([^\/]+)\/videos/)
-        if (idMatch && idMatch[1]) {
-            if (isNaN(idMatch[1])) {
-                videoPath = idMatch[1]
-            } else {
-                videoId = idMatch[1]
-            }
-        }
-    } else {
-        // 从普通URL提取videoPath
+    // 兜底：如果没有从extra获取到，尝试从URL提取
+    if (!videoPath) {
         videoPath = url.split('/').pop()
     }
     
@@ -263,74 +252,41 @@ async function getPlayinfo(ext) {
     $print("视频路径: " + (videoPath || '未知'))
     $print("视频ID: " + (videoId || '未知'))
     
-    // 如果从详情页传来了视频ID，优先使用
-    if (videoId) {
-        $print("使用详情页提供的视频ID: " + videoId)
-        const javplayerUrl = await getJavplayerUrlWithId(videoId, "zh")
-        
-        if (javplayerUrl) {
-            const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
-            if (m3u8Url) {
-                return createPlayResponse(m3u8Url)
-            }
-        }
-    }
-    
-    // 如果未提供ID或使用ID失败，继续尝试其他方法
+    // 顺序尝试解析策略
     try {
-        // 方法1: 从中文页面提取ID后请求AJAX
-        $print("尝试方法1: 从中文页面提取ID")
-        const chinesePageUrl = `${appConfig.site}/zh/v/${videoPath}`
-        let pageVideoId = await extractVideoIdFromPage(chinesePageUrl)
+        let m3u8Url = null
+        let javplayerUrl = null
         
-        if (pageVideoId) {
-            $print("从中文页面提取到ID: " + pageVideoId)
-            const javplayerUrl = await getJavplayerUrlWithId(pageVideoId, "zh")
-            
-            if (javplayerUrl) {
-                const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
-                if (m3u8Url) {
-                    return createPlayResponse(m3u8Url)
-                }
-            }
+        // 1. 优先使用videoId请求AJAX接口
+        if (videoId) {
+            $print("使用videoId尝试获取播放信息")
+            javplayerUrl = await getJavplayerUrlWithId(videoId)
         }
         
-        // 方法2: 直接使用视频路径请求中文AJAX
-        $print("尝试方法2: 直接使用视频路径请求AJAX")
-        const javplayerUrlByPath = await getJavplayerUrlWithPath(videoPath)
-        
-        if (javplayerUrlByPath) {
-            const m3u8Url = await getM3u8FromJavplayer(javplayerUrlByPath)
-            if (m3u8Url) {
-                return createPlayResponse(m3u8Url)
-            }
+        // 2. 如果videoId失败，尝试使用videoPath
+        if (!javplayerUrl && videoPath) {
+            $print("使用videoPath尝试获取播放信息")
+            javplayerUrl = await getJavplayerUrlWithPath(videoPath)
         }
         
-        // 方法3: 使用英文页面和ID
-        $print("尝试方法3: 使用英文页面获取ID")
-        const englishPageUrl = `${appConfig.site}/en/dm3/v/${videoPath}`
-        const enVideoId = await extractVideoIdFromPage(englishPageUrl)
-        
-        if (enVideoId) {
-            $print("从英文页面提取到ID: " + enVideoId)
-            const javplayerUrl = await getJavplayerUrlWithId(enVideoId, "en")
-            
-            if (javplayerUrl) {
-                const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
-                if (m3u8Url) {
-                    return createPlayResponse(m3u8Url)
-                }
-            }
+        // 3. 如果获取到javplayer URL，解析m3u8地址
+        if (javplayerUrl) {
+            $print("获取到javplayer URL，尝试解析m3u8")
+            m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
         }
         
-        // 所有方法都失败
+        // 4. 返回播放结果
+        if (m3u8Url) {
+            return createPlayResponse(m3u8Url)
+        }
+        
         return jsonify({
-            error: "无法获取视频播放地址"
+            error: "无法解析视频地址"
         })
     } catch (e) {
-        $print("解析视频失败: " + e.message)
+        $print("解析视频出错: " + e.message)
         return jsonify({
-            error: "解析出错: " + e.message
+            error: "解析失败: " + e.message
         })
     }
 }
