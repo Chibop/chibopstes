@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.2
+ * 123AV XPTV 扩展脚本 v1.8.3
  * 
  * 更新日志:
  * v1.8.1 - 2025-03-11
@@ -199,19 +199,20 @@ async function getTracks(ext) {
         $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 创建符合XPTV要求的播放列表结构
+    // 最简单的方式：直接返回一个播放项
+    // 注意：增加一个唯一的play_url字段，确保播放按钮可点击
     return jsonify({
         title: title,
         picture: cover,
+        play_url: url,
         list: [{
             title: "默认线路",
             urls: [{
-                name: title,
+                name: title || "播放",
                 url: url,
                 extra: {
                     videoId: videoId,
-                    videoPath: videoPath,
-                    isDetail: true
+                    videoPath: videoPath
                 }
             }]
         }]
