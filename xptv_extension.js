@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.3
+ * 123AV XPTV 扩展脚本 v1.8.4
  * 
  * 更新日志:
  * v1.8.1 - 2025-03-11
@@ -184,9 +184,8 @@ async function getTracks(ext) {
     
     const $ = cheerio.load(data)
     
-    // 提取视频标题和封面
-    const title = $('h3.text-title').text().trim()
-    const cover = $('.img-fluid').attr('src')
+    // 提取视频标题
+    const title = $('h3.text-title').text().trim() || '未知标题'
     
     // 重要：提取视频ID和路径
     const videoPath = url.split('/').pop()
@@ -199,23 +198,25 @@ async function getTracks(ext) {
         $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 最简单的方式：直接返回一个播放项
-    // 注意：增加一个唯一的play_url字段，确保播放按钮可点击
+    // 构建播放列表 - 使用与v1.7.0相同的结构
+    let tracks = [
+        {
+            name: title,
+            url: url,
+            extra: {
+                videoPath: videoPath,
+                videoId: videoId
+            }
+        }
+    ]
+    
     return jsonify({
-        title: title,
-        picture: cover,
-        play_url: url,
-        list: [{
-            title: "默认线路",
-            urls: [{
-                name: title || "播放",
-                url: url,
-                extra: {
-                    videoId: videoId,
-                    videoPath: videoPath
-                }
-            }]
-        }]
+        list: [
+            {
+                title: "默认线路",
+                tracks: tracks
+            }
+        ]
     })
 }
 
