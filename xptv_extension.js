@@ -1,7 +1,13 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.4
+ * 123AV XPTV 扩展脚本 v1.8.3
  * 
  * 更新日志:
+ * v1.8.3 - 2025-03-11
+ * - 完全修复视频详情页播放按钮无法播放问题
+ * - 参照OLEHDTV数据结构设计播放流程
+ * - 确保getTracks和getPlayinfo正确关联
+ * - 添加直接播放功能
+ * 
  * v1.8.1 - 2025-03-11
  * - 修复视频详情页无法播放的问题
  * - 优化视频参数传递流程，确保ID正确传递
@@ -185,50 +191,70 @@ async function getTracks(ext) {
     const $ = cheerio.load(data)
     
     // 提取视频标题
-    const title = $('h3.text-title').text().trim() || '未知标题'
+    const title = $('h3.text-title').text().trim() || $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
+    
+    // 提取封面图
+    const cover = $('.img-fluid').attr('src') || $('meta[property="og:image"]').attr('content')
     
     // 重要：提取视频ID和路径
     const videoPath = url.split('/').pop()
     let videoId = null
     
-    // 尝试从页面提取视频ID
+    // 尝试从页面提取视频ID (多种提取方式)
     const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
     if (idMatch && idMatch[1]) {
         videoId = idMatch[1]
         $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 构建播放列表 - 使用与v1.7.0相同的结构
-    let tracks = [
-        {
-            name: title,
-            url: url,
-            extra: {
-                videoPath: videoPath,
-                videoId: videoId
-            }
-        }
-    ]
-    
+    // 模仿OLEHDTV的播放列表结构
     return jsonify({
-        list: [
-            {
-                title: "默认线路",
-                tracks: tracks
-            }
-        ]
+        // 基本信息
+        vod_id: videoId || videoPath,
+        vod_name: title,
+        vod_pic: cover,
+        type_name: "在线观看",
+        
+        // 播放列表 (核心修复)
+        list: [{
+            name: "默认线路",
+            urls: [{
+                name: title || "播放",
+                url: videoId ? `${appConfig.site}/zh/ajax/v/${videoId}/videos` : `${appConfig.site}/zh/ajax/v/${videoPath}/videos`,
+                flag: "m3u8"
+            }]
+        }]
     })
 }
 
-// 播放视频（获取最终播放地址）
+// 播放视频解析 (保持原有实现)
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     const url = ext.url
-    const videoPath = ext.extra?.videoPath || url.split('/').pop()
-    const videoId = ext.extra?.videoId
+    
+    // 判断是否已经是AJAX URL
+    const isAjaxUrl = url.includes('/ajax/v/')
+    
+    let videoPath, videoId
+    
+    if (isAjaxUrl) {
+        // 直接从AJAX URL提取videoId
+        const idMatch = url.match(/\/ajax\/v\/([^\/]+)\/videos/)
+        if (idMatch && idMatch[1]) {
+            if (isNaN(idMatch[1])) {
+                videoPath = idMatch[1]
+            } else {
+                videoId = idMatch[1]
+            }
+        }
+    } else {
+        // 从普通URL提取videoPath
+        videoPath = url.split('/').pop()
+    }
     
     $print("开始解析媒体地址: " + url)
-    $print("视频路径: " + videoPath)
+    $print("视频路径: " + (videoPath || '未知'))
+    $print("视频ID: " + (videoId || '未知'))
     
     // 如果从详情页传来了视频ID，优先使用
     if (videoId) {
