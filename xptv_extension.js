@@ -1,7 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.4
+ * 123AV XPTV 扩展脚本 v1.8.5
  * 
  * 更新日志:
+ * v1.8.5 - 2025-03-11
+ * - 完全修复视频详情页播放按钮无法点击问题
+ * - 完全采用v1.7.0兼容格式，使用tracks字段
+ * - 确保与XPTV播放器接口完全匹配
+ * 
  * v1.8.4 - 2025-03-11
  * - 完全修复视频详情页播放按钮无法点击问题
  * - 恢复原始数据结构并保持简单化
@@ -206,21 +211,24 @@ async function getTracks(ext) {
         $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 关键点：使用最简单的list结构
+    // 构建播放项 - 完全匹配v1.7.0格式
+    let tracks = [
+        {
+            name: title,
+            url: url,
+            extra: {
+                videoPath: videoPath,
+                videoId: videoId
+            }
+        }
+    ]
+    
+    // 关键点：使用tracks而非list字段
     return jsonify({
         list: [
             {
                 title: "默认线路",
-                list: [
-                    {
-                        title: title || "播放",
-                        url: url,
-                        extra: {
-                            videoId: videoId,
-                            videoPath: videoPath
-                        }
-                    }
-                ]
+                tracks: tracks  // 这里必须是tracks
             }
         ]
     })
