@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.7123
+ * 123AV XPTV 扩展脚本 v1.8.8
  * 
  * 更新日志:
  * v1.8.7 - 2025-03-11
@@ -267,41 +267,61 @@ async function getPlayinfo(ext) {
         })
         
         if (data && data.status === 200 && data.result && data.result.watch && data.result.watch.length > 0) {
+            // 直接获取javplayer URL
             const javplayerUrl = data.result.watch[0].url
             $print("获取到javplayer URL: " + javplayerUrl)
             
-            // 步骤2: 请求javplayer页面
+            // 步骤2: 直接请求javplayer页面
             const { data: playerData } = await $fetch.get(javplayerUrl, {
                 headers: {
-                    'User-Agent': UA,
-                    'Referer': appConfig.site
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+                    'Referer': 'https://123av.com/'
                 }
             })
             
-            // 步骤3: 从javplayer页面提取m3u8地址
-            const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/) ||
-                             playerData.match(/"stream"\s*:\s*"(.*?)"/) ||
-                             playerData.match(/https:\/\/[^"'\s]+\.m3u8/)
+            // 步骤3: 尝试多种方式提取m3u8地址
+            let m3u8Url = null
             
-            if (m3u8Match) {
-                let m3u8Url = m3u8Match[1] || m3u8Match[0]
-                m3u8Url = m3u8Url.replace(/\\\//g, '/')
+            // 方法1: 标准JSON格式
+            const streamMatch = playerData.match(/["']stream["']\s*:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/)
+            if (streamMatch && streamMatch[1]) {
+                m3u8Url = streamMatch[1].replace(/\\\//g, '/')
+            }
+            
+            // 方法2: 转义HTML格式
+            if (!m3u8Url) {
+                const quotMatch = playerData.match(/&quot;stream&quot;:&quot;(https?:.*?\.m3u8.*?)&quot;/)
+                if (quotMatch && quotMatch[1]) {
+                    m3u8Url = quotMatch[1].replace(/\\\//g, '/')
+                }
+            }
+            
+            // 方法3: 直接搜索m3u8链接
+            if (!m3u8Url) {
+                const rawMatch = playerData.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/)
+                if (rawMatch && rawMatch[1]) {
+                    m3u8Url = rawMatch[1]
+                }
+            }
+            
+            if (m3u8Url) {
                 $print("成功提取到m3u8地址: " + m3u8Url)
                 
                 return jsonify({
                     type: "hls",
                     url: m3u8Url,
                     header: {
-                        "Referer": "https://javplayer.me/"
+                        "Referer": "https://javplayer.me/",
+                        "User-Agent": UA
                     }
                 })
             } else {
-                $print("无法从javplayer页面提取m3u8地址")
-                $print("页面内容片段: " + playerData.substring(0, 300) + "...")
+                // 调试信息
+                $print("无法从javplayer页面提取m3u8，页面内容：")
+                $print(playerData.substring(0, 500) + "...")
             }
         } else {
-            $print("AJAX响应中没有找到watch数组或URL")
-            $print("AJAX响应: " + JSON.stringify(data))
+            $print("AJAX响应无效，数据：" + JSON.stringify(data))
         }
         
         return jsonify({ error: "无法获取视频播放地址" })
