@@ -199,27 +199,22 @@ async function getTracks(ext) {
         $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 创建播放列表
-    const tracks = [{
-        name: "播放线路",
-        lines: [{
-            name: "默认线路",
-            urls: [{
-                name: title,
-                url: url,
-                ext: {
-                    videoId: videoId,       // 保存提取到的视频ID
-                    videoPath: videoPath,   // 保存视频路径
-                    isDetail: true          // 标记为详情页点击
-                }
-            }]
-        }]
-    }]
-    
+    // 创建符合XPTV要求的播放列表结构
     return jsonify({
         title: title,
         picture: cover,
-        tracks: tracks
+        list: [{
+            title: "默认线路",
+            urls: [{
+                name: title,
+                url: url,
+                extra: {
+                    videoId: videoId,
+                    videoPath: videoPath,
+                    isDetail: true
+                }
+            }]
+        }]
     })
 }
 
