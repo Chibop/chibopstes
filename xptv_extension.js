@@ -1,7 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.6666
+ * 123AV XPTV 扩展脚本 v1.8.7
  * 
  * 更新日志:
+ * v1.8.7 - 2025-03-11
+ * - 基于XPTV规范文档完全重构
+ * - 简化数据传递流程，一次性解决播放问题
+ * - 使用标准key字段作为参数传递
+ * 
  * v1.8.6 - 2025-03-11
  * - 完全修复播放问题，按照XPTV标准规范重构
  * - 正确使用ext字段传递播放参数
@@ -205,7 +210,7 @@ async function getTracks(ext) {
     // 提取视频标题
     const title = $('h3.text-title').text().trim() || $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
     
-    // 重要：提取视频ID和路径
+    // 提取视频ID和路径
     const videoPath = url.split('/').pop()
     let videoId = null
     
@@ -216,18 +221,16 @@ async function getTracks(ext) {
         $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 核心修复：正确构建AJAX URL并直接传递
+    // 直接构造AJAX URL - 这是关键
     const ajaxUrl = videoId 
         ? `${appConfig.site}/zh/ajax/v/${videoId}/videos` 
         : `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
     
-    // 构建播放项 - 使用标准的XPTV格式
     let tracks = [
         {
             name: title,
-            url: url,
             ext: {
-                key: ajaxUrl  // 直接传递AJAX URL作为key
+                key: ajaxUrl  // 使用key字段传递AJAX URL
             }
         }
     ]
@@ -245,30 +248,46 @@ async function getTracks(ext) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     ext = argsify(ext)
-    const ajaxUrl = ext.key  // 直接获取AJAX URL
+    const ajaxUrl = ext.key  // 获取AJAX URL
     
-    $print("开始解析AJAX URL: " + ajaxUrl)
+    if (!ajaxUrl) {
+        return jsonify({ error: "缺少必要参数" })
+    }
+    
+    $print("请求AJAX URL: " + ajaxUrl)
     
     try {
-        // 直接请求AJAX URL获取javplayer链接
+        // 请求AJAX API获取javplayer URL
         const { data } = await $fetch.get(ajaxUrl, {
             headers: {
                 'User-Agent': UA,
+                'Referer': appConfig.site,
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
         
-        if (data && data.status === 200 && data.result) {
+        if (data && data.status === 200 && data.result && data.result.watch) {
             const { watch } = data.result
             
-            if (watch && watch.length > 0 && watch[0].url) {
+            if (watch.length > 0 && watch[0].url) {
                 const javplayerUrl = watch[0].url
-                $print("获取到javplayer URL: " + javplayerUrl)
+                $print("获取到Javplayer URL: " + javplayerUrl)
                 
-                // 从javplayer获取m3u8
-                const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
+                // 解析javplayer页面获取m3u8
+                const { data: playerData } = await $fetch.get(javplayerUrl, {
+                    headers: {
+                        'User-Agent': UA,
+                        'Referer': appConfig.site
+                    }
+                })
                 
-                if (m3u8Url) {
+                // 从页面提取m3u8地址
+                const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+                if (m3u8Match && m3u8Match[1]) {
+                    const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+                    $print("提取到m3u8地址: " + m3u8Url)
+                    
+                    // 返回标准格式
                     return jsonify({
                         type: "hls",
                         url: m3u8Url,
@@ -280,14 +299,10 @@ async function getPlayinfo(ext) {
             }
         }
         
-        return jsonify({
-            error: "无法解析视频地址"
-        })
+        return jsonify({ error: "未找到播放源" })
     } catch (e) {
-        $print("解析视频出错: " + e.message)
-        return jsonify({
-            error: "解析失败: " + e.message
-        })
+        $print("解析播放地址失败: " + e.message)
+        return jsonify({ error: "解析失败: " + e.message })
     }
 }
 
