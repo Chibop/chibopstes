@@ -1,7 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.0
+ * 123AV XPTV 扩展脚本 v1.8.1
  * 
  * 更新日志:
+ * v1.8.1 - 2025-03-11
+ * - 修复视频详情页无法播放的问题
+ * - 优化视频参数传递流程，确保ID正确传递
+ * - 改进getTracks函数，保存视频关键信息
+ * 
  * v1.8.0 - 2025-03-11
  * - 完全重构解析逻辑，采用"顺序尝试"策略
  * - 移除冗余代码，保留最有效的解析方法
@@ -179,80 +184,42 @@ async function getTracks(ext) {
     
     const $ = cheerio.load(data)
     
-    // 提取视频标题
-    const title = $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
+    // 提取视频标题和封面
+    const title = $('h3.text-title').text().trim()
+    const cover = $('.img-fluid').attr('src')
     
-    // 从URL提取视频路径
-    const videoPath = url.split('/').slice(-1)[0]
-    $print("视频路径: " + videoPath)
+    // 重要：提取视频ID和路径
+    const videoPath = url.split('/').pop()
+    let videoId = null
     
-    // 尝试从页面提取videoId (优先级高于URL)
-    let videoId = extractVideoId($, videoPath)
-    $print("视频ID: " + videoId)
-    
-    // 从页面中提取iframe或直接的视频源(用作备用)
-    let directVideoUrl = null
-    try {
-        // 检查是否有iframe
-        const iframeSrc = $('iframe').attr('src')
-        if (iframeSrc) {
-            $print("找到iframe: " + iframeSrc)
-            directVideoUrl = iframeSrc
-        }
-        
-        // 检查video标签
-        if (!directVideoUrl) {
-            const videoSrc = $('video source').attr('src')
-            if (videoSrc) {
-                $print("找到video源: " + videoSrc)
-                directVideoUrl = videoSrc
-            }
-        }
-        
-        // 检查脚本中的window.videos
-        if (!directVideoUrl) {
-            $('script').each((_, script) => {
-                const scriptContent = $(script).html() || ''
-                if (scriptContent.includes('window.videos')) {
-                    const match = scriptContent.match(/window\.videos\s*=\s*(\[.+?\]);/s)
-                    if (match && match[1]) {
-                        try {
-                            const videos = JSON.parse(match[1])
-                            if (videos && videos.length > 0 && videos[0].url) {
-                                directVideoUrl = videos[0].url
-                                $print("从脚本提取到视频URL: " + directVideoUrl)
-                            }
-                        } catch (e) {
-                            $print("解析videos数据出错: " + e.message)
-                        }
-                    }
-                }
-            })
-        }
-    } catch (e) {
-        $print("提取备用视频地址出错: " + e.message)
+    // 尝试从页面提取视频ID
+    const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
+    if (idMatch && idMatch[1]) {
+        videoId = idMatch[1]
+        $print("从详情页提取到视频ID: " + videoId)
     }
     
-    // 构建播放列表
-    let tracks = [
-        {
-            name: title,
-            url: url,
-            extra: {
-                videoPath: videoPath,
-                videoId: videoId,
-                directUrl: directVideoUrl
-            }
-        }
-    ]
+    // 创建播放列表
+    const tracks = [{
+        name: "播放线路",
+        lines: [{
+            name: "默认线路",
+            urls: [{
+                name: title,
+                url: url,
+                ext: {
+                    videoId: videoId,       // 保存提取到的视频ID
+                    videoPath: videoPath,   // 保存视频路径
+                    isDetail: true          // 标记为详情页点击
+                }
+            }]
+        }]
+    }]
     
     return jsonify({
-        list: [
-            {
-                title: "默认线路",
-                tracks: tracks
-            }
-        ]
+        title: title,
+        picture: cover,
+        tracks: tracks
     })
 }
 
@@ -261,19 +228,34 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     const url = ext.url
     const videoPath = ext.extra?.videoPath || url.split('/').pop()
+    const videoId = ext.extra?.videoId
     
     $print("开始解析媒体地址: " + url)
     $print("视频路径: " + videoPath)
     
+    // 如果从详情页传来了视频ID，优先使用
+    if (videoId) {
+        $print("使用详情页提供的视频ID: " + videoId)
+        const javplayerUrl = await getJavplayerUrlWithId(videoId, "zh")
+        
+        if (javplayerUrl) {
+            const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
+            if (m3u8Url) {
+                return createPlayResponse(m3u8Url)
+            }
+        }
+    }
+    
+    // 如果未提供ID或使用ID失败，继续尝试其他方法
     try {
         // 方法1: 从中文页面提取ID后请求AJAX
         $print("尝试方法1: 从中文页面提取ID")
         const chinesePageUrl = `${appConfig.site}/zh/v/${videoPath}`
-        let videoId = await extractVideoIdFromPage(chinesePageUrl)
+        let pageVideoId = await extractVideoIdFromPage(chinesePageUrl)
         
-        if (videoId) {
-            $print("从中文页面提取到ID: " + videoId)
-            const javplayerUrl = await getJavplayerUrlWithId(videoId, "zh")
+        if (pageVideoId) {
+            $print("从中文页面提取到ID: " + pageVideoId)
+            const javplayerUrl = await getJavplayerUrlWithId(pageVideoId, "zh")
             
             if (javplayerUrl) {
                 const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
