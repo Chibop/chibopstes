@@ -1,7 +1,13 @@
 /**
- * 123AV XPTV 扩展脚本 v1.7.0
+ * 123AV XPTV 扩展脚本 v1.8.0
  * 
  * 更新日志:
+ * v1.8.0 - 2025-03-11
+ * - 完全重构解析逻辑，采用"顺序尝试"策略
+ * - 移除冗余代码，保留最有效的解析方法
+ * - 添加更详细的日志输出，方便问题诊断
+ * - 修复AJAX URL构建问题，增强播放成功率
+ * 
  * v1.7.0 - 2025-03-11
  * - 添加多语言路径支持，当中文页面解析失败时尝试英文页面
  * - 增强视频ID提取功能，添加多种提取方式
@@ -260,188 +266,147 @@ async function getPlayinfo(ext) {
     $print("视频路径: " + videoPath)
     
     try {
-        // 1. 首先尝试从中文版页面获取
-        let videoId = await getVideoId(url, videoPath)
-        let javplayerUrl = null
+        // 方法1: 从中文页面提取ID后请求AJAX
+        $print("尝试方法1: 从中文页面提取ID")
+        const chinesePageUrl = `${appConfig.site}/zh/v/${videoPath}`
+        let videoId = await extractVideoIdFromPage(chinesePageUrl)
         
         if (videoId) {
-            $print("使用中文版页面提取到视频ID: " + videoId)
-            javplayerUrl = await getJavplayerUrl(videoId, videoPath)
-        }
-        
-        // 2. 如果中文版失败，尝试英文版页面
-        if (!javplayerUrl) {
-            $print("中文版解析失败，尝试英文版页面")
-            // 构建英文版URL
-            const enUrl = `${appConfig.site}/en/dm3/v/${videoPath}`
-            const enVideoId = await getVideoId(enUrl, videoPath)
+            $print("从中文页面提取到ID: " + videoId)
+            const javplayerUrl = await getJavplayerUrlWithId(videoId, "zh")
             
-            if (enVideoId) {
-                $print("使用英文版页面提取到视频ID: " + enVideoId)
-                javplayerUrl = await getJavplayerUrl(enVideoId, videoPath, 'en')
+            if (javplayerUrl) {
+                const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
+                if (m3u8Url) {
+                    return createPlayResponse(m3u8Url)
+                }
             }
         }
         
-        // 3. 如果仍然失败，尝试视频路径作为ID
-        if (!javplayerUrl) {
-            $print("尝试使用视频路径作为ID")
-            javplayerUrl = await getJavplayerUrl(videoPath, videoPath)
-        }
+        // 方法2: 直接使用视频路径请求中文AJAX
+        $print("尝试方法2: 直接使用视频路径请求AJAX")
+        const javplayerUrlByPath = await getJavplayerUrlWithPath(videoPath)
         
-        // 4. 获取m3u8地址
-        if (javplayerUrl) {
-            $print("成功获取到javplayer URL: " + javplayerUrl)
-            const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
-            
+        if (javplayerUrlByPath) {
+            const m3u8Url = await getM3u8FromJavplayer(javplayerUrlByPath)
             if (m3u8Url) {
-                return jsonify({
-                    type: "hls",
-                    url: m3u8Url,
-                    header: {
-                        "Referer": "https://javplayer.me/"
-                    }
-                })
+                return createPlayResponse(m3u8Url)
             }
         }
         
+        // 方法3: 使用英文页面和ID
+        $print("尝试方法3: 使用英文页面获取ID")
+        const englishPageUrl = `${appConfig.site}/en/dm3/v/${videoPath}`
+        const enVideoId = await extractVideoIdFromPage(englishPageUrl)
+        
+        if (enVideoId) {
+            $print("从英文页面提取到ID: " + enVideoId)
+            const javplayerUrl = await getJavplayerUrlWithId(enVideoId, "en")
+            
+            if (javplayerUrl) {
+                const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
+                if (m3u8Url) {
+                    return createPlayResponse(m3u8Url)
+                }
+            }
+        }
+        
+        // 所有方法都失败
         return jsonify({
-            error: "无法解析视频地址"
+            error: "无法获取视频播放地址"
         })
     } catch (e) {
-        $print("解析视频地址出错: " + e.message)
+        $print("解析视频失败: " + e.message)
         return jsonify({
-            error: "解析失败: " + e.message
+            error: "解析出错: " + e.message
         })
     }
 }
 
-// 从页面获取视频ID - 增强版
-async function getVideoId(url, videoPath) {
+// 从页面提取视频ID
+async function extractVideoIdFromPage(pageUrl) {
     try {
-        const { data } = await $fetch.get(url, {
+        const { data } = await $fetch.get(pageUrl, {
             headers: {
                 'User-Agent': UA,
                 'Referer': appConfig.site
             }
         })
         
-        $print("获取视频页面: " + url)
-        const $ = cheerio.load(data)
-        
-        // 方法1: 从Favourite元素提取
-        const $fav = $('[v-scope*="Favourite"]')
-        if ($fav.length > 0) {
-            const vScope = $fav.attr('v-scope')
-            if (vScope) {
-                const idMatch = vScope.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-                if (idMatch && idMatch[1]) {
-                    $print("从Favourite元素提取ID: " + idMatch[1])
-                    return idMatch[1]
-                }
-            }
-            
-            // 从data-args提取
-            const dataArgs = $fav.attr('data-args')
-            if (dataArgs) {
-                try {
-                    const args = JSON.parse(dataArgs)
-                    if (args && args[1]) {
-                        $print("从data-args提取ID: " + args[1])
-                        return args[1]
-                    }
-                } catch (e) {
-                    // 继续尝试其他方法
-                }
-            }
+        // 提取视频ID - 最可靠的方法
+        const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
+        if (idMatch && idMatch[1]) {
+            return idMatch[1]
         }
         
-        // 方法2: 从data-id属性提取
-        const $dataId = $('[data-id]')
-        if ($dataId.length > 0) {
-            const id = $dataId.attr('data-id')
-            $print("从data-id提取ID: " + id)
-            return id
-        }
-        
-        // 方法3: 从script标签提取
-        const scriptContent = $('script:contains("movie_id")').text()
-        const scriptMatch = scriptContent.match(/movie_id\s*[:=]\s*['"]?(\d+)['"]?/)
-        if (scriptMatch && scriptMatch[1]) {
-            $print("从script提取ID: " + scriptMatch[1])
-            return scriptMatch[1]
-        }
-        
-        // 方法4: 从HTML中查找任何数字ID链接 (常见于英文版页面)
-        const htmlContent = data.toString()
-        const numLinkMatch = htmlContent.match(/href="[^"]*?\/(\d+)\/videos"/)
-        if (numLinkMatch && numLinkMatch[1]) {
-            $print("从数字链接提取ID: " + numLinkMatch[1])
-            return numLinkMatch[1]
-        }
-        
-        // 方法5: 从ajax链接提取
-        const ajaxMatch = htmlContent.match(/ajax\/v\/(\d+)\/videos/)
-        if (ajaxMatch && ajaxMatch[1]) {
-            $print("从ajax链接提取ID: " + ajaxMatch[1])
-            return ajaxMatch[1]
-        }
-        
-        // 方法6: 尝试从meta标签提取
-        const metaContent = $('meta[property="og:url"]').attr('content')
-        if (metaContent) {
-            const metaMatch = metaContent.match(/\/(\d+)$/)
-            if (metaMatch && metaMatch[1]) {
-                $print("从meta标签提取ID: " + metaMatch[1])
-                return metaMatch[1]
-            }
-        }
-        
-        $print("无法提取到视频ID")
         return null
     } catch (e) {
-        $print("获取视频ID失败: " + e.message)
+        $print("获取页面失败: " + e.message)
         return null
     }
 }
 
-// 从AJAX API获取javplayer URL
-async function getJavplayerUrl(videoId, videoPath, lang = 'zh') {
+// 使用视频ID获取javplayer URL
+async function getJavplayerUrlWithId(videoId, lang = "zh") {
     try {
-        // 正确使用视频ID构建AJAX URL
         const ajaxUrl = `${appConfig.site}/${lang}/ajax/v/${videoId}/videos`
         $print("请求AJAX API: " + ajaxUrl)
         
-        const { data: responseData } = await $fetch.get(ajaxUrl, {
+        const { data } = await $fetch.get(ajaxUrl, {
             headers: {
                 'User-Agent': UA,
-                'Referer': `${appConfig.site}/${lang}/v/${videoPath}`,
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
         
-        if (responseData && responseData.status === 200 && responseData.result) {
-            const { watch } = responseData.result
+        if (data && data.status === 200 && data.result) {
+            const { watch } = data.result
             
-            // 检查watch数组是否存在且非空
-            if (watch && watch.length > 0) {
-                const firstSource = watch[0]
-                if (firstSource && firstSource.url) {
-                    return firstSource.url
-                }
+            if (watch && watch.length > 0 && watch[0].url) {
+                $print("获取到javplayer URL: " + watch[0].url)
+                return watch[0].url
             }
-            $print("AJAX响应中没有找到有效的watch数组")
-        } else {
-            $print("AJAX响应无效或状态码非200")
         }
         
+        $print("AJAX响应中没有找到有效链接")
         return null
     } catch (e) {
-        $print("获取javplayer URL失败: " + e.message)
+        $print("AJAX请求失败: " + e.message)
         return null
     }
 }
 
-// 从javplayer获取m3u8 URL - 更精确的提取方法
+// 使用视频路径获取javplayer URL
+async function getJavplayerUrlWithPath(videoPath) {
+    try {
+        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
+        $print("请求AJAX API (路径): " + ajaxUrl)
+        
+        const { data } = await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        
+        if (data && data.status === 200 && data.result) {
+            const { watch } = data.result
+            
+            if (watch && watch.length > 0 && watch[0].url) {
+                $print("获取到javplayer URL: " + watch[0].url)
+                return watch[0].url
+            }
+        }
+        
+        $print("路径方式AJAX响应中没有找到有效链接")
+        return null
+    } catch (e) {
+        $print("路径方式AJAX请求失败: " + e.message)
+        return null
+    }
+}
+
+// 从javplayer获取m3u8地址
 async function getM3u8FromJavplayer(javplayerUrl) {
     try {
         $print("请求javplayer页面: " + javplayerUrl)
@@ -449,121 +414,35 @@ async function getM3u8FromJavplayer(javplayerUrl) {
         const { data } = await $fetch.get(javplayerUrl, {
             headers: {
                 'User-Agent': UA,
-                'Referer': 'https://123av.com/'
+                'Referer': appConfig.site
             }
         })
         
-        // 方法1: 精确匹配&quot;stream&quot;格式(处理HTML实体)
-        const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-        if (quotMatch && quotMatch[1]) {
-            const m3u8Url = quotMatch[1].replace(/\\\//g, '/')
-            $print("从&quot;实体中提取到stream URL: " + m3u8Url)
+        // 提取m3u8 URL - 简化为最可靠的一种方法
+        const m3u8Match = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+        if (m3u8Match && m3u8Match[1]) {
+            const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+            $print("提取到m3u8 URL: " + m3u8Url)
             return m3u8Url
         }
         
-        // 方法2: 匹配普通JSON格式(如果HTML实体已被解析)
-        const jsonMatch = data.match(/"stream"\s*:\s*"(.*?)"/)
-        if (jsonMatch && jsonMatch[1]) {
-            const m3u8Url = jsonMatch[1].replace(/\\\//g, '/')
-            $print("从JSON格式提取到stream URL: " + m3u8Url)
-            return m3u8Url
-        }
-        
-        // 方法3: 直接查找任何m3u8地址
-        const urlMatch = data.match(/https:\/\/[^"'\s]+\.m3u8/)
-        if (urlMatch) {
-            $print("直接找到m3u8 URL: " + urlMatch[0])
-            return urlMatch[0]
-        }
-        
-        // 方法4: 尝试根据视频编码构造m3u8地址
-        const videoCode = javplayerUrl.split('/').pop().toLowerCase()
-        if (videoCode) {
-            const domains = ['s210.skyearth4.xyz', 's205.skyearth12.xyz', 's209.skyearth7.xyz', 's204.skyearth4.xyz', 's304.skyearth12.xyz']
-            
-            for (const domain of domains) {
-                const patterns = [
-                    `https://${domain}/vod1/${videoCode.substring(0, 1)}/${videoCode.substring(1, 3)}/${videoCode}_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8`,
-                    `https://${domain}/vod1/${videoCode.substring(0, 2).toLowerCase()}/${videoCode.substring(2, 4).toLowerCase()}/${videoCode}_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8`,
-                ]
-                
-                for (const pattern of patterns) {
-                    try {
-                        $print("尝试构造m3u8 URL: " + pattern)
-                        const {status} = await $fetch.head(pattern, {
-                            headers: {
-                                'User-Agent': UA,
-                                'Referer': 'https://javplayer.me/'
-                            }
-                        })
-                        
-                        if (status === 200) {
-                            $print("构造的m3u8 URL有效")
-                            return pattern
-                        }
-                    } catch (e) {
-                        // 继续尝试下一个模式
-                    }
-                }
-            }
-        }
-        
-        $print("未能从页面提取到m3u8地址")
-        $print("页面内容片段: " + data.substring(0, 200) + "...")
+        $print("无法从javplayer页面提取m3u8 URL")
         return null
     } catch (e) {
-        $print("解析javplayer页面失败: " + e.message)
+        $print("获取m3u8失败: " + e.message)
         return null
     }
 }
 
-// 从页面提取videoId
-function extractVideoId($, fallbackId) {
-    // 尝试从Favourite元素提取
-    const $fav = $('.favourite')
-    if ($fav.length > 0) {
-        const vScope = $fav.attr('v-scope')
-        if (vScope) {
-            const idMatch = vScope.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-            if (idMatch && idMatch[1]) {
-                $print("从Favourite元素提取ID: " + idMatch[1])
-                return idMatch[1]
-            }
+// 创建播放响应
+function createPlayResponse(m3u8Url) {
+    return jsonify({
+        type: "hls",
+        url: m3u8Url,
+        header: {
+            "Referer": "https://javplayer.me/"
         }
-        
-        // 尝试从data-args提取
-        const dataArgs = $fav.attr('data-args')
-        if (dataArgs) {
-            try {
-                const args = JSON.parse(dataArgs)
-                if (args && args[1]) {
-                    $print("从data-args提取ID: " + args[1])
-                    return args[1]
-                }
-            } catch (e) {
-                // 继续尝试其他方法
-            }
-        }
-    }
-    
-    // 从data-id属性提取
-    const $dataId = $('[data-id]')
-    if ($dataId.length > 0) {
-        const id = $dataId.attr('data-id')
-        $print("从data-id提取ID: " + id)
-        return id
-    }
-    
-    // 从script标签提取
-    const scriptContent = $('script:contains("movie_id")').text()
-    const scriptMatch = scriptContent.match(/movie_id\s*[:=]\s*['"]?(\d+)['"]?/)
-    if (scriptMatch && scriptMatch[1]) {
-        $print("从script提取ID: " + scriptMatch[1])
-        return scriptMatch[1]
-    }
-    
-    $print("未找到ID，使用备用: " + fallbackId)
-    return fallbackId
+    })
 }
 
 // 搜索功能
