@@ -1,7 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本 v1.8.9
+ * 123AV XPTV 扩展脚本 v1.9.1
  * 
  * 更新日志:
+ * v1.9.1 - 2025-03-11
+ * - 完全修复播放问题：实现正确的播放流程
+ * - 简化getPlayinfo函数，确保直接请求过程
+ * - 确保完整的videos->javplayer->m3u8流程
+ * 
  * v1.8.7 - 2025-03-11
  * - 基于XPTV规范文档完全重构
  * - 简化数据传递流程，一次性解决播放问题
@@ -245,7 +250,7 @@ async function getTracks(ext) {
     })
 }
 
-// 播放视频解析
+// 播放视频解析 (完全重写)
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     const ajaxUrl = ext.key  // 获取AJAX URL
@@ -254,73 +259,64 @@ async function getPlayinfo(ext) {
         return jsonify({ error: "缺少必要参数" })
     }
     
-    $print("请求AJAX URL: " + ajaxUrl)
+    $print("步骤1: 请求AJAX URL获取javplayer地址: " + ajaxUrl)
     
     try {
-        // 从ajaxUrl中提取videoId或videoPath
-        let videoId = null
-        let videoPath = null
+        // 步骤1: 直接请求AJAX URL获取javplayer URL
+        const { data } = await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
         
-        const idMatch = ajaxUrl.match(/\/ajax\/v\/(\d+)\/videos/)
-        const pathMatch = ajaxUrl.match(/\/ajax\/v\/([^\/]+)\/videos/)
-        
-        if (idMatch && idMatch[1]) {
-            videoId = idMatch[1]
-            $print("从AJAX URL提取到视频ID: " + videoId)
-        } else if (pathMatch && pathMatch[1]) {
-            videoPath = pathMatch[1]
-            $print("从AJAX URL提取到视频路径: " + videoPath)
+        // 检查AJAX响应
+        if (!data || data.status !== 200 || !data.result || !data.result.watch || !data.result.watch.length) {
+            $print("AJAX响应无效: " + JSON.stringify(data))
+            return jsonify({ error: "无法获取视频源" })
         }
         
-        // 步骤1: 获取javplayer URL
-        let javplayerUrl = null
-        
-        if (videoId) {
-            javplayerUrl = await getJavplayerUrlWithId(videoId)
-        }
-        
-        if (!javplayerUrl && videoPath) {
-            javplayerUrl = await getJavplayerUrlWithPath(videoPath)
-        }
-        
+        // 从AJAX响应中提取javplayer URL
+        const javplayerUrl = data.result.watch[0].url
         if (!javplayerUrl) {
-            $print("无法获取javplayer URL，尝试直接请求AJAX")
-            // 直接请求AJAX URL作为备用方案
-            const { data } = await $fetch.get(ajaxUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            
-            if (data && data.status === 200 && data.result && data.result.watch && data.result.watch.length > 0) {
-                javplayerUrl = data.result.watch[0].url
-                $print("从AJAX响应获取到javplayer URL: " + javplayerUrl)
-            }
+            $print("AJAX响应中未找到javplayer URL")
+            return jsonify({ error: "未找到视频播放源" })
         }
         
-        // 步骤2: 从javplayer获取m3u8地址
-        if (javplayerUrl) {
-            const m3u8Url = await getM3u8FromJavplayer(javplayerUrl)
-            
-            if (m3u8Url) {
-                $print("成功获取m3u8地址: " + m3u8Url)
-                return jsonify({
-                    type: "hls",
-                    url: m3u8Url,
-                    header: {
-                        "Referer": "https://javplayer.me/",
-                        "User-Agent": UA
-                    }
-                })
-            } else {
-                $print("无法从javplayer获取m3u8地址")
+        $print("步骤2: 从AJAX获取到javplayer URL: " + javplayerUrl)
+        
+        // 步骤2: 请求javplayer URL获取m3u8地址
+        const { data: playerData } = await $fetch.get(javplayerUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+                'Referer': 'https://123av.com/'
             }
-        } else {
-            $print("获取javplayer URL失败")
+        })
+        
+        $print("步骤3: 从javplayer页面提取m3u8地址")
+        
+        // 从javplayer页面提取m3u8地址
+        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+        if (!m3u8Match || !m3u8Match[1]) {
+            $print("无法从javplayer页面提取m3u8地址，页面内容片段:")
+            $print(playerData.substring(0, 300) + "...")
+            return jsonify({ error: "无法获取视频播放地址" })
         }
         
-        return jsonify({ error: "无法获取视频播放地址" })
+        // 处理m3u8 URL
+        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+        $print("成功获取m3u8地址: " + m3u8Url)
+        
+        // 返回播放信息
+        return jsonify({
+            type: "hls",
+            url: m3u8Url,
+            header: {
+                "Referer": "https://javplayer.me/",
+                "User-Agent": UA
+            }
+        })
     } catch (e) {
         $print("解析播放地址失败: " + e.message)
         return jsonify({ error: "解析失败: " + e.message })
