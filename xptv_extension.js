@@ -1,7 +1,12 @@
 /**
- * 123AV XPTV 扩展脚本 v1.9.2
+ * 123AV XPTV 扩展脚本 v2.0.0
  * 
  * 更新日志:
+ * v2.0.0 - 2025-03-11
+ * - 完全修复流程问题：在进入详情页时就获取m3u8地址
+ * - 正确实现XPTV流程：getTracks完成全部解析，getPlayinfo直接使用结果
+ * - 确保符合XPTV预期工作流程
+ * 
  * v1.9.2 - 2025-03-11
  * - 彻底修复流程问题：确保遵循正确的请求顺序
  * - 简化播放实现，直接使用传入的AJAX URL
@@ -201,12 +206,12 @@ async function getVideos(ext) {
     return await getCards(ext)
 }
 
-// 获取视频详情和播放列表
+// 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
     ext = argsify(ext)
     const { url } = ext
     
-    $print("获取播放列表URL: " + url)
+    $print("视频详情页URL: " + url)
     
     const { data } = await $fetch.get(url, {
         headers: {
@@ -239,23 +244,85 @@ async function getTracks(ext) {
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
     }
     
-    $print("构建AJAX URL: " + ajaxUrl)
+    $print("步骤1: 请求AJAX URL: " + ajaxUrl)
     
-    // 将AJAX URL作为key传递给getPlayinfo
-    let tracks = [
-        {
-            name: title,
-            ext: {
-                key: ajaxUrl  // 这里传递的是AJAX URL，getPlayinfo会直接请求这个URL
+    try {
+        // 步骤1: 请求AJAX获取javplayer URL
+        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site,
+                'X-Requested-With': 'XMLHttpRequest'
             }
+        })
+        
+        // 检查AJAX响应
+        if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
+            $print("AJAX响应无效，无法获取javplayer URL")
+            return createDefaultTracks(title, url)
         }
-    ]
-    
+        
+        // 步骤2: 获取javplayer URL
+        const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
+        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
+        
+        // 步骤3: 请求javplayer页面获取m3u8
+        const { data: playerData } = await $fetch.get(javplayerUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+                'Referer': 'https://123av.com/'
+            }
+        })
+        
+        // 步骤4: 从javplayer页面提取m3u8地址
+        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+        if (!m3u8Match || !m3u8Match[1]) {
+            $print("无法从javplayer页面提取m3u8地址")
+            return createDefaultTracks(title, url)
+        }
+        
+        // 获取m3u8地址
+        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+        $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
+        
+        // 将m3u8地址直接传递给getPlayinfo
+        let tracks = [
+            {
+                name: title,
+                ext: {
+                    key: m3u8Url  // 关键：直接传递m3u8地址
+                }
+            }
+        ]
+        
+        return jsonify({
+            list: [
+                {
+                    title: "默认线路",
+                    tracks: tracks
+                }
+            ]
+        })
+    } catch (e) {
+        $print("获取播放信息失败: " + e.message)
+        return createDefaultTracks(title, url)
+    }
+}
+
+// 创建默认播放选项（当解析失败时使用）
+function createDefaultTracks(title, url) {
     return jsonify({
         list: [
             {
-                title: "默认线路",
-                tracks: tracks
+                title: "解析失败",
+                tracks: [
+                    {
+                        name: title,
+                        ext: {
+                            key: ""  // 空key表示无法播放
+                        }
+                    }
+                ]
             }
         ]
     })
@@ -264,71 +331,23 @@ async function getTracks(ext) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     ext = argsify(ext)
-    const ajaxUrl = ext.key  // 获取AJAX URL
+    const m3u8Url = ext.key  // 直接获取m3u8地址
     
-    if (!ajaxUrl) {
-        return jsonify({ error: "缺少必要参数" })
+    if (!m3u8Url) {
+        return jsonify({ error: "无法获取视频播放地址" })
     }
     
-    $print("步骤1: 请求AJAX URL: " + ajaxUrl)
+    $print("使用已解析的m3u8地址: " + m3u8Url)
     
-    try {
-        // 直接请求AJAX URL获取javplayer URL
-        const { data } = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        // 确保响应有效
-        if (!data || data.status !== 200 || !data.result || !data.result.watch || !data.result.watch.length) {
-            $print("AJAX响应无效: " + JSON.stringify(data))
-            return jsonify({ error: "无法获取视频播放源" })
+    // 直接返回播放数据，不再需要网络请求
+    return jsonify({
+        type: "hls",
+        url: m3u8Url,
+        header: {
+            "Referer": "https://javplayer.me/",
+            "User-Agent": UA
         }
-        
-        // 获取javplayer URL
-        const javplayerUrl = data.result.watch[0].url
-        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
-        
-        // 处理URL中的转义字符
-        const cleanJavplayerUrl = javplayerUrl.replace(/\\\//g, '/')
-        
-        // 请求javplayer页面获取m3u8
-        $print("步骤3: 请求javplayer页面获取m3u8")
-        const { data: playerData } = await $fetch.get(cleanJavplayerUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-                'Referer': 'https://123av.com/'
-            }
-        })
-        
-        // 从页面提取m3u8
-        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-        if (!m3u8Match || !m3u8Match[1]) {
-            $print("无法从javplayer页面提取m3u8地址")
-            $print("页面片段: " + playerData.substring(0, 200))
-            return jsonify({ error: "无法获取播放地址" })
-        }
-        
-        // 处理m3u8中的转义字符
-        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-        $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
-        
-        // 返回播放数据
-        return jsonify({
-            type: "hls",
-            url: m3u8Url,
-            header: {
-                "Referer": "https://javplayer.me/",
-                "User-Agent": UA
-            }
-        })
-    } catch (e) {
-        $print("解析失败: " + e.message)
-        return jsonify({ error: "视频解析失败: " + e.message })
-    }
+    })
 }
 
 // 从页面提取视频ID
