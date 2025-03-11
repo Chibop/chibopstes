@@ -1,7 +1,13 @@
 /**
- * 123AV XPTV 扩展脚本 v2.3.0
+ * 123AV XPTV 扩展脚本 v3.0.0
  * 
  * 更新日志:
+ * v3.0.0 - 2025-03-11
+ * - 参照czzy脚本结构完全重构
+ * - 简化解析流程，确保每个步骤单一职责
+ * - 保留动态获取分类功能
+ * - 优化播放流程稳定性
+ * 
  * v2.3.0 - 2025-03-11
  * - 简化播放流程，确保可靠性
  * - 合并关键步骤，提高成功率
@@ -98,6 +104,9 @@ async function getConfig() {
 
 // 获取网站导航 - 恢复动态获取功能
 async function getTabs() {
+    $print("获取首页导航标签")
+    
+    // 请求网站首页
     const { data } = await $fetch.get(appConfig.site, {
         headers: {
             'User-Agent': UA,
@@ -105,47 +114,57 @@ async function getTabs() {
         }
     })
     
-    $print("获取首页导航标签")
-    const $ = cheerio.load(data)
+    const $ = cheerio.load(data)  // 使用cheerio加载HTML
     let tabs = []
     
     try {
-        // 获取导航菜单
-        $('#nav li a').each((_, element) => {
+        // 获取主导航标签
+        const navItems = $('.nav-link')
+        navItems.each((_, element) => {
             const name = $(element).text().trim()
-            const link = $(element).attr('href')
+            const href = $(element).attr('href')
             
-            if (link && name && !link.includes('javascript:') && !link.includes('#')) {
-                let fullUrl = link.startsWith('http') ? link : 
-                              link.startsWith('/zh/') ? `${appConfig.site}${link}` :
-                              link.startsWith('/') ? `${appConfig.site}/zh${link}` :
-                              `${appConfig.site}/zh/${link}`
+            // 过滤掉一些不需要的导航项
+            if (name && href && !name.includes('登录') && !name.includes('注册')) {
+                let fullUrl = ''
+                if (href.startsWith('http')) {
+                    fullUrl = href
+                } else if (href.startsWith('/zh/')) {
+                    fullUrl = `${appConfig.site}${href}`
+                } else if (href.startsWith('/')) {
+                    fullUrl = `${appConfig.site}/zh${href}`
+                } else {
+                    fullUrl = `${appConfig.site}/zh/${href}`
+                }
                 
                 tabs.push({
                     name: name,
                     ext: {
-                        url: fullUrl,
-                        page: 1
+                        url: fullUrl
                     }
                 })
             }
         })
+        
+        // 如果没有找到导航项，使用默认分类
+        if (tabs.length === 0) {
+            $print("未找到导航项，使用默认分类")
+            tabs = [
+                { name: '最近更新', ext: { url: `${appConfig.site}/zh/` } },
+                { name: '热门视频', ext: { url: `${appConfig.site}/zh/new` } },
+                { name: '视频分类', ext: { url: `${appConfig.site}/zh/dm` } }
+            ]
+        }
     } catch (e) {
-        $print("动态提取导航失败: " + e.message)
-    }
-    
-    // 如果动态提取失败，使用静态配置
-    if (tabs.length < 3) {
+        $print("获取导航失败，使用默认分类: " + e.message)
         tabs = [
-            { name: "最近更新", ext: { url: appConfig.site + "/zh/dm5", page: 1 } },
-            { name: "热门视频", ext: { url: appConfig.site + "/zh/dm2/trending", page: 1 } },
-            { name: "今日热门", ext: { url: appConfig.site + "/zh/dm2/today-hot", page: 1 } },
-            { name: "已审查", ext: { url: appConfig.site + "/zh/dm2/censored", page: 1 } },
-            { name: "未审查", ext: { url: appConfig.site + "/zh/dm3/uncensored", page: 1 } },
-            { name: "按类别", ext: { url: appConfig.site + "/zh/categories", page: 1 } }
+            { name: '最近更新', ext: { url: `${appConfig.site}/zh/` } },
+            { name: '热门视频', ext: { url: `${appConfig.site}/zh/new` } },
+            { name: '视频分类', ext: { url: `${appConfig.site}/zh/dm` } }
         ]
     }
     
+    $print("获取到导航标签数量: " + tabs.length)
     return tabs
 }
 
