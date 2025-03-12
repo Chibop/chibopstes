@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.1
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -82,6 +82,11 @@
  * - 恢复动态获取分类功能
  * - 修复视频详情页播放按钮置灰无法点击的问题
  * - 优化播放解析流程
+ *
+ * v3.0.1 - 2025-03-11
+ * - 修复视频列表无法加载的问题
+ * - 恢复原有URL处理逻辑，确保分页正常
+ * - 保持整体结构优化
  */
 
 const cheerio = createCheerio()
@@ -168,66 +173,108 @@ async function getTabs() {
     return tabs
 }
 
-// 视频列表获取 - 使用老版本的getCards函数
+// 视频列表获取 - 修复分页问题
 async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
 
+    // 修复分页URL构建 - 根据URL结构选择正确的分页方式
     if (page > 1) {
-        url += `?page=${page}`
+        if (url.includes('?')) {
+            url += `&page=${page}`
+        } else {
+            // 根据URL不同类型选择不同的分页方式
+            if (url.endsWith('/') || url.includes('/dm') || url.includes('/new')) {
+                url += `?page=${page}`
+            } else {
+                // 尝试添加分页路径
+                const urlParts = url.split('/')
+                const lastPart = urlParts[urlParts.length - 1]
+                
+                // 检查最后一部分是否已经是数字(页码)
+                if (!isNaN(lastPart)) {
+                    // 已有页码，替换
+                    urlParts[urlParts.length - 1] = page.toString()
+                    url = urlParts.join('/')
+                } else {
+                    // 添加页码
+                    url += `?page=${page}`
+                }
+            }
+        }
     }
 
     $print("请求URL: " + url)
 
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
-        },
-    })
+    try {
+        const { data } = await $fetch.get(url, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site
+            },
+        })
 
-    const $ = cheerio.load(data)
+        const $ = cheerio.load(data)
 
-    $('.box-item').each((_, element) => {
-        const title = $(element).find('.detail a').text().trim()
-        const link = $(element).find('.detail a').attr('href')
-        const image = $(element).find('.thumb img').attr('data-src') || $(element).find('.thumb img').attr('src')
-        const remarks = $(element).find('.duration').text().trim()
-        
-        if (link && title) {
-            let fullUrl = ''
-            if (link.startsWith('http')) {
-                fullUrl = link
-            } else if (link.startsWith('/zh/')) {
-                fullUrl = `${appConfig.site}${link}`
-            } else if (link.startsWith('/')) {
-                fullUrl = `${appConfig.site}/zh${link}`
-            } else {
-                fullUrl = `${appConfig.site}/zh/${link}`
-            }
+        // 使用更通用的选择器，兼容多种页面结构
+        $('.box-item, .item').each((_, element) => {
+            // 尝试多种选择器组合获取必要信息
+            const title = $(element).find('.detail a, .title a').text().trim()
+            const link = $(element).find('.detail a, .title a').attr('href')
+            const image = $(element).find('.thumb img').attr('data-src') || 
+                         $(element).find('.thumb img').attr('src') || 
+                         $(element).find('img').attr('data-src') || 
+                         $(element).find('img').attr('src')
+            const remarks = $(element).find('.duration, .text-muted').text().trim()
             
-            cards.push({
-                vod_id: link,
-                vod_name: title,
-                vod_pic: image,
-                vod_remarks: remarks,
-                ext: {
-                    url: fullUrl
-                },
-            })
-        }
-    })
+            if (link && title) {
+                let fullUrl = ''
+                if (link.startsWith('http')) {
+                    fullUrl = link
+                } else if (link.startsWith('/zh/')) {
+                    fullUrl = `${appConfig.site}${link}`
+                } else if (link.startsWith('/')) {
+                    fullUrl = `${appConfig.site}/zh${link}`
+                } else {
+                    fullUrl = `${appConfig.site}/zh/${link}`
+                }
+                
+                cards.push({
+                    vod_id: link,
+                    vod_name: title,
+                    vod_pic: image,
+                    vod_remarks: remarks,
+                    ext: {
+                        url: fullUrl
+                    },
+                })
+            }
+        })
 
-    $print("找到卡片数量: " + cards.length)
-    
-    // 处理分页
-    const hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
-    
-    return jsonify({
-        list: cards,
-        nextPage: hasNext ? page + 1 : null
-    })
+        $print("找到卡片数量: " + cards.length)
+        
+        // 处理分页 - 更灵活的分页检测
+        let hasNext = false
+        // 方法1: 通过分页器检测
+        hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
+        
+        // 方法2: 如果没有分页器，但有卡片，假设有下一页
+        if (!$('.pagination').length && cards.length > 0) {
+            hasNext = true
+        }
+        
+        return jsonify({
+            list: cards,
+            nextPage: hasNext ? page + 1 : null
+        })
+    } catch (e) {
+        $print("加载视频列表失败: " + e.message)
+        return jsonify({
+            list: [],
+            error: e.message
+        })
+    }
 }
 
 // 兼容性函数 - 将getCards暴露为getVideos，保持新版兼容性
@@ -411,16 +458,140 @@ function extractM3u8Url(data) {
     return null
 }
 
+// 获取视频详情和播放列表 (关键修复)
+async function getTracks(ext) {
+    ext = argsify(ext)
+    const { url } = ext
+    
+    $print("视频详情页URL: " + url)
+    
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site
+        },
+    })
+    
+    const $ = cheerio.load(data)
+    
+    // 提取视频标题
+    const title = $('h3.text-title').text().trim() || $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
+    
+    // 从详情页提取视频ID
+    let videoId = null
+    const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
+    if (idMatch && idMatch[1]) {
+        videoId = idMatch[1]
+        $print("从详情页提取到视频ID: " + videoId)
+    }
+    
+    // 从URL提取视频路径(备用)
+    const videoPath = url.split('/').pop()
+    
+    // 构建AJAX URL
+    let ajaxUrl = null
+    if (videoId) {
+        ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
+    } else {
+        ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
+    }
+    
+    $print("步骤1: 请求AJAX URL: " + ajaxUrl)
+    
+    try {
+        // 步骤1: 请求AJAX获取javplayer URL
+        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        
+        // 检查AJAX响应
+        if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
+            $print("AJAX响应无效，无法获取javplayer URL")
+            return createDefaultTracks(title, url)
+        }
+        
+        // 步骤2: 获取javplayer URL
+        const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
+        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
+        
+        // 步骤3: 请求javplayer页面获取m3u8
+        const { data: playerData } = await $fetch.get(javplayerUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+                'Referer': 'https://123av.com/'
+            }
+        })
+        
+        // 步骤4: 从javplayer页面提取m3u8地址
+        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+        if (!m3u8Match || !m3u8Match[1]) {
+            $print("无法从javplayer页面提取m3u8地址")
+            return createDefaultTracks(title, url)
+        }
+        
+        // 获取m3u8地址
+        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+        $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
+        
+        // 将m3u8地址直接传递给getPlayinfo
+        let tracks = [
+            {
+                name: title,
+                ext: {
+                    key: m3u8Url  // 关键：直接传递m3u8地址
+                }
+            }
+        ]
+        
+        return jsonify({
+            list: [
+                {
+                    title: "默认线路",
+                    tracks: tracks
+                }
+            ]
+        })
+    } catch (e) {
+        $print("获取播放信息失败: " + e.message)
+        return createDefaultTracks(title, url)
+    }
+}
+
+// 创建默认播放选项（当解析失败时使用）
+function createDefaultTracks(title, url) {
+    return jsonify({
+        list: [
+            {
+                title: "解析失败",
+                tracks: [
+                    {
+                        name: title,
+                        ext: {
+                            key: ""  // 空key表示无法播放
+                        }
+                    }
+                ]
+            }
+        ]
+    })
+}
+
 // 播放视频解析
 async function getPlayinfo(ext) {
     ext = argsify(ext)
     const m3u8Url = ext.key  // 直接获取m3u8地址
     
     if (!m3u8Url) {
-        await reportDiagnosis("PLAYINFO_NO_M3U8", "true")
         return jsonify({ error: "无法获取视频播放地址" })
     }
     
+    $print("使用已解析的m3u8地址: " + m3u8Url)
+    
+    // 直接返回播放数据，不再需要网络请求
     return jsonify({
         type: "hls",
         url: m3u8Url,
