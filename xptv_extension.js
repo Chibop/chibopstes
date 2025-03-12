@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.1
+ * 123AV XPTV 扩展脚本 v3.0.2
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -109,67 +109,24 @@ async function getConfig() {
 
 // 获取网站导航 - 恢复动态获取功能
 async function getTabs() {
-    $print("获取首页导航标签")
+    $print("获取分类标签")
     
-    // 请求网站首页
-    const { data } = await $fetch.get(appConfig.site, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
-        }
-    })
+    // 直接返回预定义的分类标签，使用图片中的实际分类链接
+    const tabs = [
+        { name: '審查版', ext: { url: `${appConfig.site}/zh/dm2/censored` } },
+        { name: '最近更新', ext: { url: `${appConfig.site}/zh/dm2/recent-update` } },
+        { name: '新发布', ext: { url: `${appConfig.site}/zh/dm2/new-release` } },
+        { name: '未審查', ext: { url: `${appConfig.site}/zh/dm2/uncensored` } },
+        { name: '未審查泄露', ext: { url: `${appConfig.site}/zh/dm2/uncensored-leaked` } },
+        { name: 'VR', ext: { url: `${appConfig.site}/zh/dm2/vr` } },
+        { name: '热门女優', ext: { url: `${appConfig.site}/zh/dm2/actresses?sort=most_viewed_today` } },
+        { name: '热门', ext: { url: `${appConfig.site}/zh/dm2/trending` } },
+        { name: '今天最热', ext: { url: `${appConfig.site}/zh/dm2/today-hot` } },
+        { name: '本周最热', ext: { url: `${appConfig.site}/zh/dm2/weekly-hot` } },
+        { name: '本月最热', ext: { url: `${appConfig.site}/zh/dm2/monthly-hot` } }
+    ]
     
-    const $ = cheerio.load(data)  // 使用cheerio加载HTML
-    let tabs = []
-    
-    try {
-        // 获取主导航标签
-        const navItems = $('.nav-link')
-        navItems.each((_, element) => {
-            const name = $(element).text().trim()
-            const href = $(element).attr('href')
-            
-            // 过滤掉一些不需要的导航项
-            if (name && href && !name.includes('登录') && !name.includes('注册')) {
-                let fullUrl = ''
-                if (href.startsWith('http')) {
-                    fullUrl = href
-                } else if (href.startsWith('/zh/')) {
-                    fullUrl = `${appConfig.site}${href}`
-                } else if (href.startsWith('/')) {
-                    fullUrl = `${appConfig.site}/zh${href}`
-                } else {
-                    fullUrl = `${appConfig.site}/zh/${href}`
-                }
-                
-                tabs.push({
-                    name: name,
-                    ext: {
-                        url: fullUrl
-                    }
-                })
-            }
-        })
-        
-        // 如果没有找到导航项，使用默认分类
-        if (tabs.length === 0) {
-            $print("未找到导航项，使用默认分类")
-            tabs = [
-                { name: '最近更新', ext: { url: `${appConfig.site}/zh/` } },
-                { name: '热门视频', ext: { url: `${appConfig.site}/zh/new` } },
-                { name: '视频分类', ext: { url: `${appConfig.site}/zh/dm` } }
-            ]
-        }
-    } catch (e) {
-        $print("获取导航失败，使用默认分类: " + e.message)
-        tabs = [
-            { name: '最近更新', ext: { url: `${appConfig.site}/zh/` } },
-            { name: '热门视频', ext: { url: `${appConfig.site}/zh/new` } },
-            { name: '视频分类', ext: { url: `${appConfig.site}/zh/dm` } }
-        ]
-    }
-    
-    $print("获取到导航标签数量: " + tabs.length)
+    $print("预设分类标签数量: " + tabs.length)
     return tabs
 }
 
