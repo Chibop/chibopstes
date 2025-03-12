@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.2
+ * 123AV XPTV 扩展脚本 v3.0.0
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -136,29 +136,13 @@ async function getCards(ext) {
     let cards = []
     let { page = 1, url } = ext
 
-    // 修复分页URL构建 - 根据URL结构选择正确的分页方式
+    // 使用新的分页逻辑，适配dm2路径格式
     if (page > 1) {
         if (url.includes('?')) {
             url += `&page=${page}`
         } else {
-            // 根据URL不同类型选择不同的分页方式
-            if (url.endsWith('/') || url.includes('/dm') || url.includes('/new')) {
-                url += `?page=${page}`
-            } else {
-                // 尝试添加分页路径
-                const urlParts = url.split('/')
-                const lastPart = urlParts[urlParts.length - 1]
-                
-                // 检查最后一部分是否已经是数字(页码)
-                if (!isNaN(lastPart)) {
-                    // 已有页码，替换
-                    urlParts[urlParts.length - 1] = page.toString()
-                    url = urlParts.join('/')
-                } else {
-                    // 添加页码
-                    url += `?page=${page}`
-                }
-            }
+            // 对于dm2路径使用查询参数分页
+            url += `?page=${page}`
         }
     }
 
@@ -173,28 +157,45 @@ async function getCards(ext) {
         })
 
         const $ = cheerio.load(data)
+        $print("页面加载成功，开始解析")
 
-        // 使用更通用的选择器，兼容多种页面结构
-        $('.box-item, .item').each((_, element) => {
-            // 尝试多种选择器组合获取必要信息
-            const title = $(element).find('.detail a, .title a').text().trim()
-            const link = $(element).find('.detail a, .title a').attr('href')
-            const image = $(element).find('.thumb img').attr('data-src') || 
-                         $(element).find('.thumb img').attr('src') || 
-                         $(element).find('img').attr('data-src') || 
-                         $(element).find('img').attr('src')
-            const remarks = $(element).find('.duration, .text-muted').text().trim()
+        // 使用多种选择器组合，提高兼容性
+        $('.item, .box-item, li.videos-item').each((_, element) => {
+            let link, title, image, remarks
+            
+            // 尝试多种方式获取链接和标题
+            link = $(element).find('a').attr('href') || 
+                  $(element).find('.detail a').attr('href') || 
+                  $(element).find('.title a').attr('href')
+                  
+            title = $(element).find('img').attr('alt') || 
+                   $(element).find('a').attr('title') || 
+                   $(element).find('.detail a').text().trim() || 
+                   $(element).find('.title a').text().trim()
+                   
+            // 尝试多种方式获取图片
+            image = $(element).find('img').attr('data-src') || 
+                   $(element).find('img').attr('src') || 
+                   $(element).find('.thumb img').attr('data-src') || 
+                   $(element).find('.thumb img').attr('src')
+                   
+            // 尝试多种方式获取备注信息
+            remarks = $(element).find('.meta').text().trim() || 
+                     $(element).find('.duration').text().trim() || 
+                     $(element).find('.text-muted').text().trim()
+            
+            $print(`解析项目: 链接=${link}, 标题=${title}`)
             
             if (link && title) {
-                let fullUrl = ''
-                if (link.startsWith('http')) {
-                    fullUrl = link
-                } else if (link.startsWith('/zh/')) {
-                    fullUrl = `${appConfig.site}${link}`
-                } else if (link.startsWith('/')) {
-                    fullUrl = `${appConfig.site}/zh${link}`
-                } else {
-                    fullUrl = `${appConfig.site}/zh/${link}`
+                // 确保链接是完整的URL
+                if (!link.startsWith('http')) {
+                    if (link.startsWith('/zh/')) {
+                        link = `${appConfig.site}${link}`
+                    } else if (link.startsWith('/')) {
+                        link = `${appConfig.site}${link}`
+                    } else {
+                        link = `${appConfig.site}/zh/${link}`
+                    }
                 }
                 
                 cards.push({
@@ -203,7 +204,7 @@ async function getCards(ext) {
                     vod_pic: image,
                     vod_remarks: remarks,
                     ext: {
-                        url: fullUrl
+                        url: link
                     },
                 })
             }
@@ -211,14 +212,16 @@ async function getCards(ext) {
 
         $print("找到卡片数量: " + cards.length)
         
-        // 处理分页 - 更灵活的分页检测
+        // 简化分页检测逻辑
         let hasNext = false
-        // 方法1: 通过分页器检测
-        hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
-        
-        // 方法2: 如果没有分页器，但有卡片，假设有下一页
-        if (!$('.pagination').length && cards.length > 0) {
+        // 如果当前页有内容，则假设有下一页
+        if (cards.length > 0) {
             hasNext = true
+        }
+        
+        // 如果有明确的分页器，使用它来确定是否有下一页
+        if ($('.pagination').length > 0) {
+            hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
         }
         
         return jsonify({
@@ -740,5 +743,4 @@ async function reportDiagnosis(step, info) {
     } catch (e) {
         // 忽略诊断请求错误
     }
-} 
 } 
