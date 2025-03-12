@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.012111
+ * 123AV XPTV 扩展脚本 v3.0.0
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -103,6 +103,7 @@ let appConfig = {
 // 获取页面导航配置
 async function getConfig() {
     let config = appConfig
+    await $fetch.get(`https://www.google.com`, { timeout: 1000 })
     config.tabs = await getTabs()
     return jsonify(config)
 }
@@ -135,7 +136,7 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
-    await $fetch.get(`https://www.google.com/12`, { timeout: 1000 })
+
     // 使用新的分页逻辑，适配dm2路径格式
     if (page > 1) {
         if (url.includes('?')) {
