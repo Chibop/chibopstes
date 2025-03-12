@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.12
+ * 123AV XPTV 扩展脚本 v3.0.012111
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -135,7 +135,7 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
-
+    await $fetch.get(`https://www.google.com/12`, { timeout: 1000 })
     // 使用新的分页逻辑，适配dm2路径格式
     if (page > 1) {
         if (url.includes('?')) {
@@ -719,8 +719,7 @@ async function getM3u8FromJavplayer(ext) {
             }
         })
 
-        await $fetch.get(`https://www.google.com/error?message=${encodeURIComponent(e.message)}`, { timeout: 1000 })
-
+        await $fetch.get(`https://www.google.com`, { timeout: 1000 })
         // 检查AJAX响应
         if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
             $print("AJAX响应无效，无法获取javplayer URL")
