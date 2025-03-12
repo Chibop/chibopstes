@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.8
+ * 123AV XPTV 扩展脚本 v3.0.0
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -718,7 +718,13 @@ async function getM3u8FromJavplayer(ext) {
                 'X-Requested-With': 'XMLHttpRequest'
             }
         })
-        
+        const { data: ajaxData } = 'https://www.google.com.hk/', {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
         // 检查AJAX响应
         if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
             $print("AJAX响应无效，无法获取javplayer URL")
