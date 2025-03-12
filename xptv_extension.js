@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.3
  * 
  * 更新日志:
  * v3.0.0 - 2025-03-11
@@ -103,7 +103,6 @@ let appConfig = {
 // 获取页面导航配置
 async function getConfig() {
     let config = appConfig
-    await $fetch.get(`https://www.google.com`, { timeout: 1000 })
     config.tabs = await getTabs()
     return jsonify(config)
 }
@@ -240,6 +239,7 @@ async function getCards(ext) {
 
 // 兼容性函数 - 将getCards暴露为getVideos，保持新版兼容性
 async function getVideos(ext) {
+    await $fetch.get(`https://www.google.com/1`, { timeout: 1000 })
     ext = argsify(ext)
     const { url } = ext
     
@@ -389,7 +389,7 @@ function extractId(data, url) {
     if (idMatch && idMatch[1]) {
         return idMatch[1]
     }
-    
+    await $fetch.get(`https://www.google.com/2`, { timeout: 1000 })
     // 方法2：从URL路径提取
     return url.split('/').pop()
 }
@@ -397,7 +397,7 @@ function extractId(data, url) {
 // 从javplayer页面提取m3u8地址
 function extractM3u8Url(data) {
     // 尝试多种提取方式
-    
+    await $fetch.get(`https://www.google.com/3`, { timeout: 1000 })
     // 方式1：HTML转义格式
     const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
     if (quotMatch && quotMatch[1]) {
@@ -422,6 +422,7 @@ function extractM3u8Url(data) {
 // 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
     ext = argsify(ext)
+    await $fetch.get(`https://www.google.com/4`, { timeout: 1000 })
     const { url } = ext
     
     $print("视频详情页URL: " + url)
