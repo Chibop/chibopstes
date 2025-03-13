@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0123444
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -334,10 +334,17 @@ function extractM3u8Url(data) {
 
 // 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
+    await $fetch.get(`https://www.google.com/7`, { timeout: 1000 })
     ext = argsify(ext)
     const { url } = ext
     
     $print("视频详情页URL: " + url)
+    
+    // 添加对getM3u8FromJavplayer的调用
+    // 使用一个异步并行调用，不等待结果，确保不阻塞主流程
+    getM3u8FromJavplayer({url: url}).catch(e => {
+        $print("并行调用getM3u8FromJavplayer失败: " + e.message)
+    });
     
     const { data } = await $fetch.get(url, {
         headers: {
@@ -561,30 +568,6 @@ async function getJavplayerUrlWithPath(videoPath) {
 
 // 从javplayer获取m3u8地址
 async function getM3u8FromJavplayer(ext) {
-    // try {
-    //     $print("请求javplayer页面: " + javplayerUrl)
-        
-    //     const { data } = await $fetch.get(javplayerUrl, {
-    //         headers: {
-    //             'User-Agent': UA,
-    //             'Referer': appConfig.site
-    //         }
-    //     })
-        
-    //     // 提取m3u8 URL - 简化为最可靠的一种方法
-    //     const m3u8Match = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-    //     if (m3u8Match && m3u8Match[1]) {
-    //         const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-    //         $print("提取到m3u8 URL: " + m3u8Url)
-    //         return m3u8Url
-    //     }
-        
-    //     $print("无法从javplayer页面提取m3u8 URL")
-    //     return null
-    // } catch (e) {
-    //     $print("获取m3u8失败: " + e.message)
-    //     return null
-    // }
     ext = argsify(ext)
     const { url } = ext
     
