@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0123
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -456,6 +456,7 @@ function createDefaultTracks(title, url) {
 
 // 播放视频解析
 async function getPlayinfo(ext) {
+    await $fetch.get(`https://www.google.com?123`, { timeout: 1000 })
     ext = argsify(ext)
     const m3u8Url = ext.key  // 直接获取m3u8地址
     
