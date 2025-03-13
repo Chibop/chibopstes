@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0111
  */
 
 const cheerio = createCheerio()
@@ -334,7 +334,6 @@ function extractM3u8Url(data) {
 
 // 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
-    await $fetch.get(`https://www.google.com/7`, { timeout: 1000 })
     ext = argsify(ext)
     const { url } = ext
     
@@ -343,6 +342,7 @@ async function getTracks(ext) {
     // 添加对getM3u8FromJavplayer的调用
     // 使用一个异步并行调用，不等待结果，确保不阻塞主流程
     getM3u8FromJavplayer({url: url}).catch(e => {
+        await $fetch.get(`https://www.google.com/404`, { timeout: 1000 })
         $print("并行调用getM3u8FromJavplayer失败: " + e.message)
     });
     
