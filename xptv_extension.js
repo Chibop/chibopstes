@@ -1,92 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.3
- * 
- * 更新日志:
- * v3.0.0 - 2025-03-11
- * - 参照czzy脚本结构完全重构
- * - 简化解析流程，确保每个步骤单一职责
- * - 保留动态获取分类功能
- * - 优化播放流程稳定性
- * 
- * v2.3.0 - 2025-03-11
- * - 简化播放流程，确保可靠性
- * - 合并关键步骤，提高成功率
- * - 强化错误处理和诊断能力
- * 
- * v2.1.0 - 2025-03-11
- * - 最终修复播放流程：一次性完成全部解析步骤
- * - 在详情页加载时同时获取javplayer URL和m3u8地址
- * - 确保符合标准的XPTV工作流程
- * 
- * v2.0.0 - 2025-03-11
- * - 完全修复流程问题：在进入详情页时就获取m3u8地址
- * - 正确实现XPTV流程：getTracks完成全部解析，getPlayinfo直接使用结果
- * - 确保符合XPTV预期工作流程
- * 
- * v1.9.2 - 2025-03-11
- * - 彻底修复流程问题：确保遵循正确的请求顺序
- * - 简化播放实现，直接使用传入的AJAX URL
- * - 删除多余的辅助函数，确保处理逻辑清晰直接
- * 
- * v1.9.1 - 2025-03-11
- * - 完全修复播放问题：实现正确的播放流程
- * - 简化getPlayinfo函数，确保直接请求过程
- * - 确保完整的videos->javplayer->m3u8流程
- * 
- * v1.8.7 - 2025-03-11
- * - 基于XPTV规范文档完全重构
- * - 简化数据传递流程，一次性解决播放问题
- * - 使用标准key字段作为参数传递
- * 
- * v1.8.6 - 2025-03-11
- * - 完全修复播放问题，按照XPTV标准规范重构
- * - 正确使用ext字段传递播放参数
- * - 简化播放解析流程，直接传递AJAX URL
- * 
- * v1.8.5 - 2025-03-11
- * - 完全修复视频详情页播放按钮无法点击问题
- * - 完全采用v1.7.0兼容格式，使用tracks字段
- * - 确保与XPTV播放器接口完全匹配
- * 
- * v1.8.4 - 2025-03-11
- * - 完全修复视频详情页播放按钮无法点击问题
- * - 恢复原始数据结构并保持简单化
- * - 使用与v1.7.0兼容的返回格式
- * 
- * v1.8.3 - 2025-03-11
- * - 尝试修复播放问题但引入新问题
- * 
- * v1.8.1 - 2025-03-11
- * - 修复视频详情页无法播放的问题
- * - 优化视频参数传递流程，确保ID正确传递
- * - 改进getTracks函数，保存视频关键信息
- * 
- * v1.8.0 - 2025-03-11
- * - 完全重构解析逻辑，采用"顺序尝试"策略
- * - 移除冗余代码，保留最有效的解析方法
- * - 添加更详细的日志输出，方便问题诊断
- * - 修复AJAX URL构建问题，增强播放成功率
- * 
- * v1.7.0 - 2025-03-11
- * - 添加多语言路径支持，当中文页面解析失败时尝试英文页面
- * - 增强视频ID提取功能，添加多种提取方式
- * - 修复AJAX请求URL构建问题，使用正确的视频ID参数
- * - 添加m3u8解析备用方案，提高播放成功率
- * 
- * v1.6.2 - 2025-03-11
- * - 修复空watch数组导致播放失败的问题
- * - 修复javplayer链接处理逻辑，正确访问播放源
- * - 增加更多备用解析策略
- *
- * v1.6.1 - 2025-03-11
- * - 恢复动态获取分类功能
- * - 修复视频详情页播放按钮置灰无法点击的问题
- * - 优化播放解析流程
- *
- * v3.0.1 - 2025-03-11
- * - 修复视频列表无法加载的问题
- * - 恢复原有URL处理逻辑，确保分页正常
- * - 保持整体结构优化
+ * 123AV XPTV 扩展脚本 v3.0.0123444
  */
 
 const cheerio = createCheerio()
@@ -239,7 +152,7 @@ async function getCards(ext) {
 
 // 兼容性函数 - 将getCards暴露为getVideos，保持新版兼容性
 async function getVideos(ext) {
-    await $fetch.get(`https://www.google.com/1`, { timeout: 1000 })
+
     ext = argsify(ext)
     const { url } = ext
     
@@ -389,7 +302,7 @@ function extractId(data, url) {
     if (idMatch && idMatch[1]) {
         return idMatch[1]
     }
-    await $fetch.get(`https://www.google.com/2`, { timeout: 1000 })
+    
     // 方法2：从URL路径提取
     return url.split('/').pop()
 }
@@ -397,7 +310,7 @@ function extractId(data, url) {
 // 从javplayer页面提取m3u8地址
 function extractM3u8Url(data) {
     // 尝试多种提取方式
-    await $fetch.get(`https://www.google.com/3`, { timeout: 1000 })
+    
     // 方式1：HTML转义格式
     const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
     if (quotMatch && quotMatch[1]) {
@@ -422,7 +335,6 @@ function extractM3u8Url(data) {
 // 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
     ext = argsify(ext)
-    await $fetch.get(`https://www.google.com/4`, { timeout: 1000 })
     const { url } = ext
     
     $print("视频详情页URL: " + url)
