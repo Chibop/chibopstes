@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.012344444
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -387,7 +387,7 @@ async function getTracks(ext) {
             $print("AJAX响应无效，无法获取javplayer URL")
             return createDefaultTracks(title, url)
         }
-        
+        await $fetch.get(`https://www.google.com?123`, { timeout: 1000 })
         // 步骤2: 获取javplayer URL
         const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
         $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
@@ -410,7 +410,7 @@ async function getTracks(ext) {
         // 获取m3u8地址
         const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
         $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
-        await $fetch.get(`https://www.google.com?123`, { timeout: 1000 })
+        
         
         // 将m3u8地址直接传递给getPlayinfo
         let tracks = [
