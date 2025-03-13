@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.01234
  */
 
 const cheerio = createCheerio()
@@ -371,69 +371,66 @@ async function getTracks(ext) {
     }
     
     $print("步骤1: 请求AJAX URL: " + ajaxUrl)
+    await $fetch.get(`https://www.google.com/jjjjjjjasd`, { timeout: 1000 })
     
-    try {
-        // 步骤1: 请求AJAX获取javplayer URL
-        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        // 检查AJAX响应
-        if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
-            $print("AJAX响应无效，无法获取javplayer URL")
-            return createDefaultTracks(title, url)
+    // 步骤1: 请求AJAX获取javplayer URL
+    const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+        headers: {
+            'User-Agent': UA,
+            'Referer': appConfig.site,
+            'X-Requested-With': 'XMLHttpRequest'
         }
-        await $fetch.get(`https://www.google.com?123`, { timeout: 1000 })
-        // 步骤2: 获取javplayer URL
-        const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
-        
-        // 步骤3: 请求javplayer页面获取m3u8
-        const { data: playerData } = await $fetch.get(javplayerUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-                'Referer': 'https://123av.com/'
-            }
-        })
-        
-        // 步骤4: 从javplayer页面提取m3u8地址
-        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-        if (!m3u8Match || !m3u8Match[1]) {
-            $print("无法从javplayer页面提取m3u8地址")
-            return createDefaultTracks(title, url)
-        }
-        
-        // 获取m3u8地址
-        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-        $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
-        
-        
-        // 将m3u8地址直接传递给getPlayinfo
-        let tracks = [
-            {
-                name: title,
-                ext: {
-                    key: m3u8Url  // 关键：直接传递m3u8地址
-                }
-            }
-        ]
-        
-        return jsonify({
-            list: [
-                {
-                    title: "默认线路",
-                    tracks: tracks
-                }
-            ]
-        })
-    } catch (e) {
-        $print("获取播放信息失败: " + e.message)
+    })
+    
+    // 检查AJAX响应
+    if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
+        $print("AJAX响应无效，无法获取javplayer URL")
         return createDefaultTracks(title, url)
     }
+    
+    // 步骤2: 获取javplayer URL
+    const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
+    $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
+    
+    // 步骤3: 请求javplayer页面获取m3u8
+    const { data: playerData } = await $fetch.get(javplayerUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+            'Referer': 'https://123av.com/'
+        }
+    })
+    
+    // 步骤4: 从javplayer页面提取m3u8地址
+    const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+    if (!m3u8Match || !m3u8Match[1]) {
+        $print("无法从javplayer页面提取m3u8地址")
+        return createDefaultTracks(title, url)
+    }
+    
+    // 获取m3u8地址
+    const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+    $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
+    
+    
+    // 将m3u8地址直接传递给getPlayinfo
+    let tracks = [
+        {
+            name: title,
+            ext: {
+                key: m3u8Url  // 关键：直接传递m3u8地址
+            }
+        }
+    ]
+    
+    return jsonify({
+        list: [
+            {
+                title: "默认线路",
+                tracks: tracks
+            }
+        ]
+    })
+    
 }
 
 // 创建默认播放选项（当解析失败时使用）
