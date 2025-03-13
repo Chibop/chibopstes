@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0111
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -341,7 +341,7 @@ async function getTracks(ext) {
     
     // 添加对getM3u8FromJavplayer的调用
     // 使用一个异步并行调用，不等待结果，确保不阻塞主流程
-    getM3u8FromJavplayer({url: url}).catch(e => {
+    getM3u8FromJavplayer({url: url}).catch(async e => {
         await $fetch.get(`https://www.google.com/404`, { timeout: 1000 })
         $print("并行调用getM3u8FromJavplayer失败: " + e.message)
     });
