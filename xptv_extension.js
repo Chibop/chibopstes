@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.01234
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -454,17 +454,73 @@ function createDefaultTracks(title, url) {
 
 // 播放视频解析
 async function getPlayinfo(ext) {
-    
     ext = argsify(ext)
-    const m3u8Url = ext.key  // 直接获取m3u8地址
+    let m3u8Url = ext.key  // 尝试获取已有的m3u8地址
+    const videoUrl = ext.url || ""  // 获取视频URL
+    
+    // 如果没有m3u8地址，自行获取
+    if (!m3u8Url) {
+        try {
+            $print("未获取到m3u8地址，准备重新获取，视频URL: " + videoUrl)
+            
+            // 提取视频路径/ID
+            const videoPath = videoUrl.split('/').pop()
+            
+            // 构建AJAX URL
+            const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
+            $print("重新构建AJAX URL: " + ajaxUrl)
+            
+            // 步骤1: 请求AJAX获取javplayer URL
+            const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': appConfig.site,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            
+            // 检查AJAX响应
+            if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
+                $print("AJAX响应无效，无法获取javplayer URL")
+                return jsonify({ error: "无法获取播放数据(AJAX)" })
+            }
+            
+            // 步骤2: 获取javplayer URL
+            const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
+            $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
+            
+            // 步骤3: 请求javplayer页面获取m3u8
+            const { data: playerData } = await $fetch.get(javplayerUrl, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+                    'Referer': 'https://123av.com/'
+                }
+            })
+            
+            // 步骤4: 从javplayer页面提取m3u8地址
+            const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+            if (!m3u8Match || !m3u8Match[1]) {
+                $print("无法从javplayer页面提取m3u8地址")
+                return jsonify({ error: "无法提取m3u8地址" })
+            }
+            
+            // 获取m3u8地址
+            m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+            $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
+            
+        } catch (e) {
+            $print("获取m3u8地址失败: " + e.message)
+            return jsonify({ error: "获取播放地址失败: " + e.message })
+        }
+    }
     
     if (!m3u8Url) {
         return jsonify({ error: "无法获取视频播放地址" })
     }
     
-    $print("使用已解析的m3u8地址: " + m3u8Url)
+    $print("使用m3u8地址播放: " + m3u8Url)
     
-    // 直接返回播放数据，不再需要网络请求
+    // 返回播放数据
     return jsonify({
         type: "hls",
         url: m3u8Url,
