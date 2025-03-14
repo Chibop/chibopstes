@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0123444
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -623,11 +623,48 @@ async function getM3u8FromJavplayer(ext) {
     }
     
     try {
-        // 从URL提取视频ID或路径
-        const videoPath = url.split('/').pop()
+        // 提取视频ID的方法改进
+        let videoId = ""
+        
+        // 方法1: 直接从URL路径提取
+        if (url.includes("/video/")) {
+            videoId = url.split('/').pop()
+            $print("从URL路径提取视频ID: " + videoId)
+        }
+        // 方法2: 如果URL是数字，直接使用
+        else if (/^\d+$/.test(url)) {
+            videoId = url
+            $print("直接使用数字作为视频ID: " + videoId)
+        }
+        // 方法3: 需要先获取页面内容提取ID
+        else {
+            $print("需要从页面内容提取视频ID: " + url)
+            const { data } = await $fetch.get(url, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': appConfig.site
+                }
+            })
+            
+            const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
+            if (idMatch && idMatch[1]) {
+                videoId = idMatch[1]
+                $print("从页面内容提取到视频ID: " + videoId)
+            } else {
+                // 最后尝试从URL提取最后一段
+                videoId = url.split('/').pop()
+                $print("尝试使用URL最后一段作为ID: " + videoId)
+            }
+        }
+        
+        // 确保有视频ID
+        if (!videoId) {
+            $print("无法获取有效的视频ID")
+            return null
+        }
         
         // 构建AJAX URL
-        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
+        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
         $print("步骤1: 请求AJAX URL: " + ajaxUrl)
         
         // 请求AJAX获取javplayer URL
