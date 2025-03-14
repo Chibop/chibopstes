@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.01111111111111
  */
 
 const cheerio = createCheerio()
@@ -12,6 +12,9 @@ let appConfig = {
     title: '123AV',
     site: 'https://123av.com'
 }
+
+// 添加一个全局缓存，用于保存视频ID
+let cachedVideoIds = {};
 
 // 获取页面导航配置
 async function getConfig() {
@@ -357,7 +360,9 @@ async function getTracks(ext) {
     if (idMatch && idMatch[1]) {
         videoId = idMatch[1]
         $print("从详情页提取到视频ID: " + videoId)
-        await $fetch.get(`https://www.google.com/jjjjjjjasd`, { timeout: 1000 })
+        
+        // 保存视频ID到缓存中，使用URL作为键
+        cachedVideoIds[url] = videoId;
     }
     
     // 从URL提取视频路径(备用)
@@ -623,20 +628,35 @@ async function getM3u8FromJavplayer(ext) {
     }
     
     try {
-        // 步骤1: 从详情页提取视频ID - 使用现有的可靠方法
-        $print("步骤1: 从详情页提取视频ID: " + url)
-        const videoId = await extractVideoIdFromPage(url)
+        // 首先尝试从缓存中获取ID
+        let videoId = cachedVideoIds[url];
         
+        // 如果缓存中没有，尝试从页面提取
         if (!videoId) {
-            $print("无法从详情页提取视频ID")
+            $print("缓存中没有找到视频ID，从详情页提取: " + url)
+            videoId = await extractVideoIdFromPage(url)
+            
+            if (videoId) {
+                // 如果成功提取，保存到缓存
+                cachedVideoIds[url] = videoId;
+                $print("提取到视频ID并保存到缓存: " + videoId)
+            } else {
+                $print("无法从详情页提取视频ID")
+                return null
+            }
+        } else {
+            $print("使用缓存的视频ID: " + videoId)
+        }
+        
+        // 确保有了videoId再继续
+        if (!videoId) {
+            $print("无法获取有效的视频ID")
             return null
         }
         
-        $print("成功提取视频ID: " + videoId)
-        
-        // 步骤2: 构建AJAX URL
+        // 构建AJAX URL
         const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        $print("步骤2: 请求AJAX URL: " + ajaxUrl)
+        $print("请求AJAX URL: " + ajaxUrl)
         
         // 请求AJAX获取javplayer URL
         const { data: ajaxData } = await $fetch.get(ajaxUrl, {
@@ -653,11 +673,11 @@ async function getM3u8FromJavplayer(ext) {
             return null
         }
         
-        // 步骤3: 从AJAX响应中提取javplayer URL
+        // 从AJAX响应中提取javplayer URL
         const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-        $print("步骤3: 获取到javplayer URL: " + javplayerUrl)
+        $print("获取到javplayer URL: " + javplayerUrl)
         
-        // 步骤4: 请求javplayer页面获取m3u8
+        // 请求javplayer页面获取m3u8
         const { data: playerData } = await $fetch.get(javplayerUrl, {
             headers: {
                 'User-Agent': UA,
@@ -665,11 +685,11 @@ async function getM3u8FromJavplayer(ext) {
             }
         })
         
-        // 步骤5: 从javplayer页面提取m3u8地址
+        // 从javplayer页面提取m3u8地址
         const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
         if (m3u8Match && m3u8Match[1]) {
             const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-            $print("步骤5: 成功提取m3u8地址: " + m3u8Url)
+            $print("成功提取m3u8地址: " + m3u8Url)
             return m3u8Url
         }
         
