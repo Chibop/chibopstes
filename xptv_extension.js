@@ -1,4 +1,4 @@
-/**
+/**123
  * 123AV XPTV 扩展脚本 v3.0.0
  */
 
@@ -657,7 +657,7 @@ async function getM3u8FromJavplayer(ext) {
         // 构建AJAX URL
         const ajaxUrl = `${appConfig.site}/zh/ajax/v/266688/videos`
         $print("请求AJAX URL: " + ajaxUrl)
-        
+        await reportDiagnosis("START", url)
         // 请求AJAX获取javplayer URL
         const { data: ajaxData } = await $fetch.get(ajaxUrl, {
             headers: {
