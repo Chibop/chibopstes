@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0123
  */
 
 const cheerio = createCheerio()
@@ -623,49 +623,20 @@ async function getM3u8FromJavplayer(ext) {
     }
     
     try {
-        // 提取视频ID的方法改进
-        let videoId = ""
+        // 步骤1: 从详情页提取视频ID - 使用现有的可靠方法
+        $print("步骤1: 从详情页提取视频ID: " + url)
+        const videoId = await extractVideoIdFromPage(url)
         
-        // 方法1: 直接从URL路径提取
-        if (url.includes("/video/")) {
-            videoId = url.split('/').pop()
-            $print("从URL路径提取视频ID: " + videoId)
-        }
-        // 方法2: 如果URL是数字，直接使用
-        else if (/^\d+$/.test(url)) {
-            videoId = url
-            $print("直接使用数字作为视频ID: " + videoId)
-        }
-        // 方法3: 需要先获取页面内容提取ID
-        else {
-            $print("需要从页面内容提取视频ID: " + url)
-            const { data } = await $fetch.get(url, {
-                headers: {
-                    'User-Agent': UA,
-                    'Referer': appConfig.site
-                }
-            })
-            
-            const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-            if (idMatch && idMatch[1]) {
-                videoId = idMatch[1]
-                $print("从页面内容提取到视频ID: " + videoId)
-            } else {
-                // 最后尝试从URL提取最后一段
-                videoId = url.split('/').pop()
-                $print("尝试使用URL最后一段作为ID: " + videoId)
-            }
-        }
-        
-        // 确保有视频ID
         if (!videoId) {
-            $print("无法获取有效的视频ID")
+            $print("无法从详情页提取视频ID")
             return null
         }
         
-        // 构建AJAX URL
+        $print("成功提取视频ID: " + videoId)
+        
+        // 步骤2: 构建AJAX URL
         const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        $print("步骤1: 请求AJAX URL: " + ajaxUrl)
+        $print("步骤2: 请求AJAX URL: " + ajaxUrl)
         
         // 请求AJAX获取javplayer URL
         const { data: ajaxData } = await $fetch.get(ajaxUrl, {
@@ -682,11 +653,11 @@ async function getM3u8FromJavplayer(ext) {
             return null
         }
         
-        // 从AJAX响应中提取javplayer URL
+        // 步骤3: 从AJAX响应中提取javplayer URL
         const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
+        $print("步骤3: 获取到javplayer URL: " + javplayerUrl)
         
-        // 请求javplayer页面获取m3u8
+        // 步骤4: 请求javplayer页面获取m3u8
         const { data: playerData } = await $fetch.get(javplayerUrl, {
             headers: {
                 'User-Agent': UA,
@@ -694,19 +665,11 @@ async function getM3u8FromJavplayer(ext) {
             }
         })
         
-        // 从javplayer页面提取m3u8地址
+        // 步骤5: 从javplayer页面提取m3u8地址
         const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
         if (m3u8Match && m3u8Match[1]) {
             const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-            $print("步骤3: 成功提取m3u8地址: " + m3u8Url)
-            return m3u8Url
-        }
-        
-        // 尝试备用提取方式
-        const streamMatch = playerData.match(/["']stream["']\s*:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/i)
-        if (streamMatch && streamMatch[1]) {
-            const m3u8Url = streamMatch[1].replace(/\\\//g, '/')
-            $print("步骤3: 通过备用方式提取m3u8地址: " + m3u8Url)
+            $print("步骤5: 成功提取m3u8地址: " + m3u8Url)
             return m3u8Url
         }
         
