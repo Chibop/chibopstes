@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0123
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -361,7 +361,7 @@ async function getTracks(ext) {
     
     // 从URL提取视频路径(备用)
     const videoPath = url.split('/').pop()
-    
+    await $fetch.get(`https://www.google.com/jjjjjjjasd`, { timeout: 1000 })
     // 构建AJAX URL
     let ajaxUrl = null
     if (videoId) {
@@ -456,7 +456,6 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     let m3u8Url = ext.key  // 尝试获取已有的m3u8地址
     const videoUrl = ext.url || ""  // 获取视频URL
-    await $fetch.get(`https://www.google.com/jjjjjjjasd`, { timeout: 1000 })
     // 如果没有m3u8地址，自行获取
     if (!m3u8Url) {
         try {
