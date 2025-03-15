@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0123
  */
 
 const cheerio = createCheerio()
@@ -68,7 +68,13 @@ async function getCards(ext) {
         const { data } = await $fetch.get(url, {
             headers: {
                 'User-Agent': UA,
-                'Referer': appConfig.site
+                'Referer': appConfig.site,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Cache-Control': 'max-age=0'
             },
         })
 
@@ -167,7 +173,13 @@ async function getVideos(ext) {
         const { data } = await $fetch.get(url, {
             headers: {
                 'User-Agent': UA,
-                'Referer': appConfig.site
+                'Referer': appConfig.site,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Cache-Control': 'max-age=0'
             }
         })
         
@@ -345,7 +357,13 @@ async function getTracks(ext) {
     const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
-            'Referer': appConfig.site
+            'Referer': appConfig.site,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cache-Control': 'max-age=0'
         },
     })
     
