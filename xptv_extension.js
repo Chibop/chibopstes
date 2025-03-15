@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0123
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -15,6 +15,17 @@ let appConfig = {
 
 // 添加一个全局缓存，用于保存视频ID
 let cachedVideoIds = {};
+
+// 添加随机延迟函数
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 修改请求方式，添加随机延迟
+async function safeRequest(url, options) {
+    await sleep(2000 + Math.random() * 3000); // 2-5秒随机延迟
+    return $fetch.get(url, options);
+}
 
 // 获取页面导航配置
 async function getConfig() {
@@ -65,18 +76,18 @@ async function getCards(ext) {
     $print("请求URL: " + url)
 
     try {
-        const { data } = await $fetch.get(url, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Cache-Control': 'max-age=0'
-            },
-        })
+        const headers = {
+            'User-Agent': UA,
+            'Referer': appConfig.site,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
+        }
+
+        const { data } = await $fetch.get(url, headers)
 
         const $ = cheerio.load(data)
         $print("页面加载成功，开始解析")
@@ -170,18 +181,18 @@ async function getVideos(ext) {
         await reportDiagnosis("START", url)
         
         // 请求视频详情页
-        const { data } = await $fetch.get(url, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Cache-Control': 'max-age=0'
-            }
-        })
+        const headers = {
+            'User-Agent': UA,
+            'Referer': appConfig.site,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
+        }
+
+        const { data } = await $fetch.get(url, headers)
         
         // 记录详情页获取成功
         await reportDiagnosis("DETAIL_PAGE_SUCCESS", url.length.toString())
@@ -354,18 +365,18 @@ async function getTracks(ext) {
     
     $print("视频详情页URL: " + url)
     
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cache-Control': 'max-age=0'
-        },
-    })
+    const headers = {
+        'User-Agent': UA,
+        'Referer': appConfig.site,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
+    }
+
+    const { data } = await $fetch.get(url, headers)
     
     const $ = cheerio.load(data)
     
@@ -493,13 +504,18 @@ async function getPlayinfo(ext) {
             $print("重新构建AJAX URL: " + ajaxUrl)
             
             // 步骤1: 请求AJAX获取javplayer URL
-            const { data: ajaxData } = await $fetch.get(ajaxUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    'Referer': appConfig.site,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
+            const headers = {
+                'User-Agent': UA,
+                'Referer': appConfig.site,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
+            }
+
+            const { data: ajaxData } = await $fetch.get(ajaxUrl, headers)
             
             // 检查AJAX响应
             if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
@@ -779,15 +795,3 @@ async function search(ext) {
         nextPage: hasNext ? page + 1 : null
     })
 }
-
-// 简化的诊断报告函数
-async function reportDiagnosis(step, info) {
-    const diagnosisUrl = `https://www.google.com/123av_${step}_${info.replace(/[^a-zA-Z0-9_-]/g, '_')}`
-    $print(`诊断: ${step} - ${info}`)
-    
-    try {
-        await $fetch.get(diagnosisUrl, { timeout: 1000 })
-    } catch (e) {
-        // 忽略诊断请求错误
-    }
-} 
