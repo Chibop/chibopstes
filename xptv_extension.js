@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.012
  */
 
 const cheerio = createCheerio()
@@ -689,7 +689,7 @@ async function getM3u8FromJavplayer(ext) {
             return null
         }
         
-        // 构建AJAX URL
+        // 使用正确的videoId构建AJAX URL - 修复硬编码问题
         const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
         $print("请求AJAX URL: " + ajaxUrl)
         
