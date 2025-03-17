@@ -509,6 +509,7 @@ async function getPlayinfo(ext) {
     
     $print("视频详情页URL: " + url)
     
+    // 强制访问视频详情页
     const headers = {
         'User-Agent': UA,
         'Referer': appConfig.site,
@@ -520,7 +521,9 @@ async function getPlayinfo(ext) {
         'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
     }
 
+    // 强制访问详情页
     const { data } = await $fetch.get(url, headers)
+    await $fetch.get('https://www.google.com/?1111234')
     
     const $ = cheerio.load(data)
     
@@ -531,12 +534,15 @@ async function getPlayinfo(ext) {
         videoId = idMatch[1]
         $print("从详情页提取到视频ID: " + videoId)
         
-        // 保存视频ID到缓存中，使用URL作为键
-        cachedVideoIds[url] = videoId;
-        
-        // 直接访问带视频ID的123地址
+        // 强制访问带视频ID的123地址
         const videoApiUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        await $fetch.get(videoApiUrl)
+        await $fetch.get(videoApiUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': url,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
         await $fetch.get(`https://www.google.com/?${videoId}`)
     }
     
@@ -547,13 +553,25 @@ async function getPlayinfo(ext) {
     if (videoId) {
         await $fetch.get('https://www.google.com/?53311113')
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        // 再次确保访问带视频ID的地址
-        await $fetch.get(ajaxUrl)
+        // 再次强制访问带视频ID的地址
+        await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': url,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
         await $fetch.get(`https://www.google.com/?${ajaxUrl}`)
     } else {
         await $fetch.get('https://www.google.com/?5553')
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
-        await $fetch.get(ajaxUrl)
+        await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': url,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
     }
     
     $print("步骤1: 请求AJAX URL: " + ajaxUrl)
