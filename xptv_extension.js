@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0123
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -493,7 +493,19 @@ function createDefaultTracks(title, url) {
 async function getPlayinfo(ext) {
     await $fetch.get('https://www.google.com/?1111233')
     ext = argsify(ext)
-    const { url } = ext
+    const { url, key } = ext
+    
+    // 如果已经有m3u8地址，直接返回
+    if (key) {
+        return jsonify({
+            type: "hls",
+            url: key,
+            header: {
+                "Referer": "https://javplayer.me/",
+                "User-Agent": UA
+            }
+        })
+    }
     
     $print("视频详情页URL: " + url)
     
@@ -521,6 +533,10 @@ async function getPlayinfo(ext) {
         
         // 保存视频ID到缓存中，使用URL作为键
         cachedVideoIds[url] = videoId;
+        
+        // 直接访问带视频ID的123地址
+        const videoApiUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
+        await $fetch.get(videoApiUrl)
         await $fetch.get(`https://www.google.com/?${videoId}`)
     }
     
@@ -529,12 +545,15 @@ async function getPlayinfo(ext) {
     // 构建AJAX URL
     let ajaxUrl = null
     if (videoId) {
-        await $fetch.get('https://www.google.com/?5333')
+        await $fetch.get('https://www.google.com/?53311113')
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
+        // 再次确保访问带视频ID的地址
+        await $fetch.get(ajaxUrl)
         await $fetch.get(`https://www.google.com/?${ajaxUrl}`)
     } else {
         await $fetch.get('https://www.google.com/?5553')
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
+        await $fetch.get(ajaxUrl)
     }
     
     $print("步骤1: 请求AJAX URL: " + ajaxUrl)
