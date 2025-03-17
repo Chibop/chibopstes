@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0122
  */
 
 const cheerio = createCheerio()
@@ -62,7 +62,7 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
-    await cheerio.fromURL('https://example.com')
+    await $fetch.get('https://www.google.com')
     // 使用新的分页逻辑，适配dm2路径格式
     if (page > 1) {
         if (url.includes('?')) {
