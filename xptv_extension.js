@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0111
  */
 
 const cheerio = createCheerio()
@@ -323,7 +323,6 @@ async function getVideos(ext) {
 
 // 从页面提取视频ID
 function extractId(data, url) {
-    await $fetch.get('https://www.google.com/?3')
     // 方法1：从Favourite函数参数提取
     const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
     if (idMatch && idMatch[1]) {
@@ -337,7 +336,6 @@ function extractId(data, url) {
 // 从javplayer页面提取m3u8地址
 function extractM3u8Url(data) {
     // 尝试多种提取方式
-    await $fetch.get('https://www.google.com/?4')
     // 方式1：HTML转义格式
     const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
     if (quotMatch && quotMatch[1]) {
