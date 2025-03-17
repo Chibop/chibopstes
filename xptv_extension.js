@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0122
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -62,7 +62,7 @@ async function getCards(ext) {
     ext = argsify(ext)
     let cards = []
     let { page = 1, url } = ext
-    await $fetch.get('https://www.google.com')
+    await $fetch.get('https://www.google.com/?视频列表页')
     // 使用新的分页逻辑，适配dm2路径格式
     if (page > 1) {
         if (url.includes('?')) {
@@ -175,7 +175,7 @@ async function getVideos(ext) {
 
     ext = argsify(ext)
     const { url } = ext
-    
+    await $fetch.get('https://www.google.com/?2')
     try {
         // 记录请求开始
         await reportDiagnosis("START", url)
@@ -323,6 +323,7 @@ async function getVideos(ext) {
 
 // 从页面提取视频ID
 function extractId(data, url) {
+    await $fetch.get('https://www.google.com/?3')
     // 方法1：从Favourite函数参数提取
     const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
     if (idMatch && idMatch[1]) {
@@ -336,7 +337,7 @@ function extractId(data, url) {
 // 从javplayer页面提取m3u8地址
 function extractM3u8Url(data) {
     // 尝试多种提取方式
-    
+    await $fetch.get('https://www.google.com/?4')
     // 方式1：HTML转义格式
     const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
     if (quotMatch && quotMatch[1]) {
@@ -360,6 +361,7 @@ function extractM3u8Url(data) {
 
 // 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
+    await $fetch.get('https://www.google.com/?5')
     ext = argsify(ext)
     const { url } = ext
     
@@ -489,6 +491,7 @@ function createDefaultTracks(title, url) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     ext = argsify(ext)
+    await $fetch.get('https://www.google.com/?7')
     let m3u8Url = ext.key  // 尝试获取已有的m3u8地址
     const videoUrl = ext.url || ""  // 获取视频URL
     // 如果没有m3u8地址，自行获取
@@ -578,7 +581,7 @@ async function extractVideoIdFromPage(pageUrl) {
                 'Referer': appConfig.site
             }
         })
-        
+        await $fetch.get('https://www.google.com/?8')
         // 提取视频ID - 最可靠的方法
         const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
         if (idMatch && idMatch[1]) {
@@ -595,6 +598,7 @@ async function extractVideoIdFromPage(pageUrl) {
 // 使用视频ID获取javplayer URL
 async function getJavplayerUrlWithId(videoId, lang = "zh") {
     try {
+        await $fetch.get('https://www.google.com/?9')
         const ajaxUrl = `${appConfig.site}/${lang}/ajax/v/${videoId}/videos`
         $print("请求AJAX API: " + ajaxUrl)
         
@@ -625,6 +629,7 @@ async function getJavplayerUrlWithId(videoId, lang = "zh") {
 // 使用视频路径获取javplayer URL
 async function getJavplayerUrlWithPath(videoPath) {
     try {
+        await $fetch.get('https://www.google.com/?10')
         const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
         $print("请求AJAX API (路径): " + ajaxUrl)
         
@@ -656,7 +661,7 @@ async function getJavplayerUrlWithPath(videoPath) {
 async function getM3u8FromJavplayer(ext) {
     ext = argsify(ext)
     const { url } = ext
-    
+    await $fetch.get('https://www.google.com/?11')
     if (!url) {
         $print("未提供视频URL")
         return null
