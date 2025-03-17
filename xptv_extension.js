@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.01111
  */
 
 const cheerio = createCheerio()
@@ -392,6 +392,7 @@ async function getTracks(ext) {
         
         // 保存视频ID到缓存中，使用URL作为键
         cachedVideoIds[url] = videoId;
+        await $fetch.get('https://www.google.com/?123')
     }
     
     // 从URL提取视频路径(备用)
@@ -399,8 +400,10 @@ async function getTracks(ext) {
     // 构建AJAX URL
     let ajaxUrl = null
     if (videoId) {
+        await $fetch.get('https://www.google.com/?5333')
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
     } else {
+        await $fetch.get('https://www.google.com/?5553')
         ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
     }
     
@@ -488,12 +491,9 @@ function createDefaultTracks(title, url) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     ext = argsify(ext)
-    let videoId = cachedVideoIds[url]
-    await $fetch.get(`https://www.google.com/?v=${videoId}`)
     await $fetch.get('https://www.google.com/?7')
     let m3u8Url = ext.key  // 尝试获取已有的m3u8地址
     const videoUrl = ext.url || ""  // 获取视频URL
-    await $fetch.get(`https://www.google.com/?v=${videoUrl}`)
     // 如果没有m3u8地址，自行获取
     if (!m3u8Url) {
         try {
