@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0111
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -450,23 +450,27 @@ async function getTracks(ext) {
     const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
     $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
     
-    // 在构建tracks之前打印m3u8地址和ajaxUrl
-    await $fetch.get(`https://www.google.com/?m3u8_url=${encodeURIComponent(m3u8Url)}`)
-    await $fetch.get(`https://www.google.com/?building_ajaxUrl=${encodeURIComponent(ajaxUrl)}`)
+    // 在构建tracks之前打印所有关键变量
+    await $fetch.get(`https://www.google.com/?debug_getTracks_before_build=${encodeURIComponent(JSON.stringify({
+        title,
+        m3u8Url,
+        url,
+        ajaxUrl
+    }))}`)
     
     let tracks = [
         {
             name: title,
             ext: {
-                key: m3u8Url,  // m3u8地址
-                url: url,      // 原始URL
-                ajaxUrl: ajaxUrl  // 添加ajaxUrl
+                key: m3u8Url,
+                url: url,
+                ajaxUrl: ajaxUrl
             }
         }
     ]
     
-    // 打印最终构建的tracks对象
-    await $fetch.get(`https://www.google.com/?tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
+    // 打印构建后的tracks对象
+    await $fetch.get(`https://www.google.com/?debug_getTracks_tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
     
     const returnObj = {
         list: [
@@ -477,8 +481,8 @@ async function getTracks(ext) {
         ]
     }
     
-    // 打印完整的返回对象
-    await $fetch.get(`https://www.google.com/?return_obj=${encodeURIComponent(JSON.stringify(returnObj))}`)
+    // 打印最终返回对象
+    await $fetch.get(`https://www.google.com/?debug_getTracks_return=${encodeURIComponent(JSON.stringify(returnObj))}`)
     
     return jsonify(returnObj)
 }
@@ -506,13 +510,24 @@ function createDefaultTracks(title, url) {
 async function getPlayinfo(ext) {
     await $fetch.get('https://www.google.com/?1111233')
     
-    // 确保ext是对象
+    // 打印原始ext对象的类型和内容
+    await $fetch.get(`https://www.google.com/?debug_getPlayinfo_ext_type=${typeof ext}`)
+    await $fetch.get(`https://www.google.com/?debug_getPlayinfo_raw_ext=${encodeURIComponent(JSON.stringify(ext))}`)
+    
     ext = ext || {}
     ext = argsify(ext)
+    
+    // 打印argsify后的ext对象
+    await $fetch.get(`https://www.google.com/?debug_getPlayinfo_after_argsify=${encodeURIComponent(JSON.stringify(ext))}`)
+    
     const { url, key, ajaxUrl } = ext || {}
     
-    // 打印传入的所有参数
-    await $fetch.get(`https://www.google.com/?all_params=${encodeURIComponent(JSON.stringify({ url, key, ajaxUrl }))}`)
+    // 打印解构后的各个值
+    await $fetch.get(`https://www.google.com/?debug_getPlayinfo_values=${encodeURIComponent(JSON.stringify({
+        url: url || 'undefined',
+        key: key || 'undefined',
+        ajaxUrl: ajaxUrl || 'undefined'
+    }))}`)
     
     // 如果有ajaxUrl，直接访问它
     if (ajaxUrl) {
@@ -525,13 +540,6 @@ async function getPlayinfo(ext) {
             }
         })
     }
-    
-    // 在argsify之前先看看原始的ext值
-    await $fetch.get(`https://www.google.com/?raw_ext=${encodeURIComponent(JSON.stringify(ext))}`)
-    
-    ext = argsify(ext)
-    // argsify之后的值也打印出来看看
-    await $fetch.get(`https://www.google.com/?after_argsify=${encodeURIComponent(JSON.stringify(ext))}`)
     
     // 验证是否有m3u8地址
     if (key) {
