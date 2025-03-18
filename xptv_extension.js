@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0111
  */
 
 const cheerio = createCheerio()
@@ -359,9 +359,11 @@ function extractM3u8Url(data) {
 
 // 获取视频详情和播放列表 (关键修复)
 async function getTracks(ext) {
-    await $fetch.get('https://www.google.com/?5')
     ext = argsify(ext)
     const { url } = ext
+    
+    // 打印传入getTracks的参数
+    await $fetch.get(`https://www.google.com/?getTracks_ext=${encodeURIComponent(JSON.stringify(ext))}`)
     
     $print("视频详情页URL: " + url)
     
@@ -448,16 +450,21 @@ async function getTracks(ext) {
     const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
     $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
     
+    // 在构建tracks之前打印m3u8地址
+    await $fetch.get(`https://www.google.com/?m3u8_url=${encodeURIComponent(m3u8Url)}`)
     
-    // 将m3u8地址直接传递给getPlayinfo
     let tracks = [
         {
             name: title,
             ext: {
-                key: m3u8Url  // 关键：直接传递m3u8地址
+                key: m3u8Url,  // m3u8地址
+                url: url       // 原始URL
             }
         }
     ]
+    
+    // 打印最终构建的tracks对象
+    await $fetch.get(`https://www.google.com/?tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
     
     return jsonify({
         list: [
@@ -467,7 +474,6 @@ async function getTracks(ext) {
             }
         ]
     })
-    
 }
 
 // 创建默认播放选项（当解析失败时使用）
