@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.011123
  */
 
 const cheerio = createCheerio()
@@ -451,26 +451,32 @@ async function getTracks(ext) {
     $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
     
     // 在构建tracks之前打印所有关键变量
-    await $fetch.get(`https://www.google.com/?debug_getTracks_before_build=${encodeURIComponent(JSON.stringify({
+    await $fetch.get(`https://www.google.com/?debug_building_tracks=${encodeURIComponent(JSON.stringify({
         title,
         m3u8Url,
         url,
         ajaxUrl
     }))}`)
     
+    // 确保ext对象的正确构建
+    const trackExt = {
+        key: m3u8Url,
+        url: url,
+        ajaxUrl: ajaxUrl
+    }
+    
+    // 打印构建的ext对象
+    await $fetch.get(`https://www.google.com/?debug_track_ext=${encodeURIComponent(JSON.stringify(trackExt))}`)
+    
     let tracks = [
         {
             name: title,
-            ext: {
-                key: m3u8Url,
-                url: url,
-                ajaxUrl: ajaxUrl
-            }
+            ext: trackExt
         }
     ]
     
-    // 打印构建后的tracks对象
-    await $fetch.get(`https://www.google.com/?debug_getTracks_tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
+    // 打印完整的tracks对象
+    await $fetch.get(`https://www.google.com/?debug_tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
     
     const returnObj = {
         list: [
@@ -481,9 +487,10 @@ async function getTracks(ext) {
         ]
     }
     
-    // 打印最终返回对象
-    await $fetch.get(`https://www.google.com/?debug_getTracks_return=${encodeURIComponent(JSON.stringify(returnObj))}`)
+    // 打印最终的返回对象
+    await $fetch.get(`https://www.google.com/?debug_return=${encodeURIComponent(JSON.stringify(returnObj))}`)
     
+    // 使用JSON.stringify确保对象被正确序列化
     return jsonify(returnObj)
 }
 
