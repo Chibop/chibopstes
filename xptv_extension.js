@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0111
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -458,7 +458,8 @@ async function getTracks(ext) {
             name: title,
             ext: {
                 key: m3u8Url,  // m3u8地址
-                url: url       // 原始URL
+                url: url,      // 原始URL
+                ajaxUrl: ajaxUrl  // 添加ajaxUrl
             }
         }
     ]
@@ -498,6 +499,16 @@ function createDefaultTracks(title, url) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     await $fetch.get('https://www.google.com/?1111233')
+    ext = argsify(ext)
+    const { url, key, ajaxUrl } = ext
+    
+    // 打印传入的ajaxUrl
+    await $fetch.get(`https://www.google.com/?received_ajaxUrl=${encodeURIComponent(ajaxUrl || 'undefined')}`)
+    
+    if (ajaxUrl) {
+        // 如果有ajaxUrl，直接访问它
+        await $fetch.get(ajaxUrl)
+    }
     
     // 在argsify之前先看看原始的ext值
     await $fetch.get(`https://www.google.com/?raw_ext=${encodeURIComponent(JSON.stringify(ext))}`)
@@ -505,11 +516,6 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)
     // argsify之后的值也打印出来看看
     await $fetch.get(`https://www.google.com/?after_argsify=${encodeURIComponent(JSON.stringify(ext))}`)
-    
-    const { url, key } = ext
-    
-    // 单独打印url和key的值
-    await $fetch.get(`https://www.google.com/?url=${encodeURIComponent(url || 'undefined')}&key=${encodeURIComponent(key || 'undefined')}`)
     
     // 验证是否有m3u8地址
     if (key) {
