@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.011123
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
