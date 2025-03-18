@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0122
+ * 123AV XPTV 扩展脚本 v3.0.0
  */
 
 const cheerio = createCheerio()
@@ -492,8 +492,18 @@ function createDefaultTracks(title, url) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     await $fetch.get('https://www.google.com/?1111233')
+    
+    // 在argsify之前先看看原始的ext值
+    await $fetch.get(`https://www.google.com/?raw_ext=${encodeURIComponent(JSON.stringify(ext))}`)
+    
     ext = argsify(ext)
+    // argsify之后的值也打印出来看看
+    await $fetch.get(`https://www.google.com/?after_argsify=${encodeURIComponent(JSON.stringify(ext))}`)
+    
     const { url, key } = ext
+    
+    // 单独打印url和key的值
+    await $fetch.get(`https://www.google.com/?url=${encodeURIComponent(url || 'undefined')}&key=${encodeURIComponent(key || 'undefined')}`)
     
     // 验证是否有m3u8地址
     if (key) {
