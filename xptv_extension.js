@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0111
  */
 
 const cheerio = createCheerio()
@@ -450,8 +450,9 @@ async function getTracks(ext) {
     const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
     $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
     
-    // 在构建tracks之前打印m3u8地址
+    // 在构建tracks之前打印m3u8地址和ajaxUrl
     await $fetch.get(`https://www.google.com/?m3u8_url=${encodeURIComponent(m3u8Url)}`)
+    await $fetch.get(`https://www.google.com/?building_ajaxUrl=${encodeURIComponent(ajaxUrl)}`)
     
     let tracks = [
         {
@@ -467,14 +468,19 @@ async function getTracks(ext) {
     // 打印最终构建的tracks对象
     await $fetch.get(`https://www.google.com/?tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
     
-    return jsonify({
+    const returnObj = {
         list: [
             {
                 title: "默认线路",
                 tracks: tracks
             }
         ]
-    })
+    }
+    
+    // 打印完整的返回对象
+    await $fetch.get(`https://www.google.com/?return_obj=${encodeURIComponent(JSON.stringify(returnObj))}`)
+    
+    return jsonify(returnObj)
 }
 
 // 创建默认播放选项（当解析失败时使用）
@@ -499,15 +505,25 @@ function createDefaultTracks(title, url) {
 // 播放视频解析
 async function getPlayinfo(ext) {
     await $fetch.get('https://www.google.com/?1111233')
+    
+    // 确保ext是对象
+    ext = ext || {}
     ext = argsify(ext)
-    const { url, key, ajaxUrl } = ext
+    const { url, key, ajaxUrl } = ext || {}
     
-    // 打印传入的ajaxUrl
-    await $fetch.get(`https://www.google.com/?received_ajaxUrl=${encodeURIComponent(ajaxUrl || 'undefined')}`)
+    // 打印传入的所有参数
+    await $fetch.get(`https://www.google.com/?all_params=${encodeURIComponent(JSON.stringify({ url, key, ajaxUrl }))}`)
     
+    // 如果有ajaxUrl，直接访问它
     if (ajaxUrl) {
-        // 如果有ajaxUrl，直接访问它
-        await $fetch.get(ajaxUrl)
+        await $fetch.get(`https://www.google.com/?using_ajaxUrl=${encodeURIComponent(ajaxUrl)}`)
+        await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': url || appConfig.site,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
     }
     
     // 在argsify之前先看看原始的ext值
