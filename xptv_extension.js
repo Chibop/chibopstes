@@ -1,5 +1,5 @@
 /**
- * 123AV XPTV 扩展脚本 v3.0.0
+ * 123AV XPTV 扩展脚本 v3.0.0122
  */
 
 const cheerio = createCheerio()
@@ -511,120 +511,126 @@ async function getPlayinfo(ext) {
     await $fetch.get('https://www.google.com/?11121233')
     $print("视频详情页URL: " + url)
     
-    // 强制访问视频详情页
-    const headers = {
-        'User-Agent': UA,
-        'Referer': appConfig.site,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
-    }
-
-    // 强制访问详情页
-    const { data } = await $fetch.get(url, headers)
-    await $fetch.get('https://www.google.com/?1111234')
-    
-    const $ = cheerio.load(data)
-    
-    // 从详情页提取视频ID
-    let videoId = null
-    const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-    if (idMatch && idMatch[1]) {
-        videoId = idMatch[1]
-        $print("从详情页提取到视频ID: " + videoId)
-        
-        // 强制访问带视频ID的123地址
-        const videoApiUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        await $fetch.get(videoApiUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': url,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        await $fetch.get(`https://www.google.com/?${videoId}`)
-    }
-    
-    // 从URL提取视频路径(备用)
-    const videoPath = url.split('/').pop()
-    // 构建AJAX URL
-    let ajaxUrl = null
-    if (videoId) {
-        await $fetch.get('https://www.google.com/?53311113')
-        ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        // 再次强制访问带视频ID的地址
-        await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': url,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        await $fetch.get(`https://www.google.com/?${ajaxUrl}`)
-    } else {
-        await $fetch.get('https://www.google.com/?5553')
-        ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
-        await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': url,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-    }
-    
-    $print("步骤1: 请求AJAX URL: " + ajaxUrl)
-    
-    // 步骤1: 请求AJAX获取javplayer URL
-    const { data: ajaxData } = await $fetch.get(ajaxUrl, {
-        headers: {
+    try {
+        // 强制访问视频详情页
+        const headers = {
             'User-Agent': UA,
             'Referer': appConfig.site,
-            'X-Requested-With': 'XMLHttpRequest'
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
         }
-    })
-    
-    // 检查AJAX响应
-    if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
-        $print("AJAX响应无效，无法获取javplayer URL")
-        return jsonify({ error: "无法获取播放数据(AJAX)" })
+
+        // 强制访问详情页
+        const { data } = await $fetch.get(url, headers)
+        await $fetch.get('https://www.google.com/?1111234')
+        
+        const $ = cheerio.load(data)
+        
+        // 从详情页提取视频ID
+        let videoId = null
+        const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
+        if (idMatch && idMatch[1]) {
+            videoId = idMatch[1]
+            $print("从详情页提取到视频ID: " + videoId)
+            
+            // 强制访问带视频ID的123地址
+            const videoApiUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
+            await $fetch.get(videoApiUrl, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': url,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            await $fetch.get(`https://www.google.com/?${videoId}`)
+        }
+        
+        // 从URL提取视频路径(备用)
+        const videoPath = url.split('/').pop()
+        // 构建AJAX URL
+        let ajaxUrl = null
+        if (videoId) {
+            await $fetch.get('https://www.google.com/?53311113')
+            ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
+            // 再次强制访问带视频ID的地址
+            await $fetch.get(ajaxUrl, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': url,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            await $fetch.get(`https://www.google.com/?${ajaxUrl}`)
+        } else {
+            await $fetch.get('https://www.google.com/?5553')
+            ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
+            await $fetch.get(ajaxUrl, {
+                headers: {
+                    'User-Agent': UA,
+                    'Referer': url,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+        }
+        
+        $print("步骤1: 请求AJAX URL: " + ajaxUrl)
+        
+        // 步骤1: 请求AJAX获取javplayer URL
+        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+            headers: {
+                'User-Agent': UA,
+                'Referer': appConfig.site,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        
+        // 检查AJAX响应
+        if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
+            $print("AJAX响应无效，无法获取javplayer URL")
+            return jsonify({ error: "无法获取播放数据(AJAX)" })
+        }
+        
+        // 步骤2: 获取javplayer URL
+        const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
+        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
+        
+        // 步骤3: 请求javplayer页面获取m3u8
+        const { data: playerData } = await $fetch.get(javplayerUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+                'Referer': 'https://123av.com/'
+            }
+        })
+        
+        // 步骤4: 从javplayer页面提取m3u8地址
+        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
+        if (!m3u8Match || !m3u8Match[1]) {
+            $print("无法从javplayer页面提取m3u8地址")
+            return jsonify({ error: "无法提取m3u8地址" })
+        }
+        
+        // 获取m3u8地址
+        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
+        $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
+        
+        // 返回播放数据
+        return jsonify({
+            type: "hls",
+            url: m3u8Url,
+            header: {
+                "Referer": "https://javplayer.me/",
+                "User-Agent": UA
+            }
+        })
+    } catch (e) {
+        $print("访问视频详情页失败: " + e.message)
+        await $fetch.get('https://www.google.com/?error=' + encodeURIComponent(e.message))
+        return jsonify({ error: "访问视频详情页失败: " + e.message })
     }
-    
-    // 步骤2: 获取javplayer URL
-    const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-    $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
-    
-    // 步骤3: 请求javplayer页面获取m3u8
-    const { data: playerData } = await $fetch.get(javplayerUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-            'Referer': 'https://123av.com/'
-        }
-    })
-    
-    // 步骤4: 从javplayer页面提取m3u8地址
-    const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-    if (!m3u8Match || !m3u8Match[1]) {
-        $print("无法从javplayer页面提取m3u8地址")
-        return jsonify({ error: "无法提取m3u8地址" })
-    }
-    
-    // 获取m3u8地址
-    const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-    $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
-    
-    // 返回播放数据
-    return jsonify({
-        type: "hls",
-        url: m3u8Url,
-        header: {
-            "Referer": "https://javplayer.me/",
-            "User-Agent": UA
-        }
-    })
 }
 
 // 从页面提取视频ID
