@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 16,                              // 脚本版本号
+    ver: 17,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -130,14 +130,13 @@ async function getTracks(ext) {
         },
     })
     await $fetch.get(`https://www.google.com/1`)
-    if (data.status === 200) {
-        // 处理 JSON 数据
-        const watchUrl = data.result.watch[0].url; // 获取第一个观看链接
-        await $fetch.get(`https://www.google.com/?${watchUrl}`)
-    }
+    const watchUrl = data.result.watch[0].url; // 获取第一个观看链接
+    await $fetch.get(`https://www.google.com/?${watchUrl}`)
+    
     await $fetch.get(`https://www.google.com/2`)
     const $ = cheerio.load(data)  // 解析HTML
-    await $fetch.get(`https://www.google.com/3`)
+    abc = cheerio.load(data)
+    await $fetch.get(`https://www.google.com/?${abc}`)
     // 提取所有播放源
     $('#page-video').each((_, element) => {
         const vScope = $(element).attr('v-scope'); // 获取 v-scope 属性
