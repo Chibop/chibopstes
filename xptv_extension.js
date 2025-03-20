@@ -129,15 +129,15 @@ async function getTracks(ext) {
             'User-Agent': UA,
         },
     })
-
+    await $fetch.get(`https://www.google.com/1`)
     if (data.status === 200) {
         // 处理 JSON 数据
         const watchUrl = data.result.watch[0].url; // 获取第一个观看链接
         await $fetch.get(`https://www.google.com/?${watchUrl}`)
     }
-
+    await $fetch.get(`https://www.google.com/2`)
     const $ = cheerio.load(data)  // 解析HTML
-
+    await $fetch.get(`https://www.google.com/3`)
     // 提取所有播放源
     $('#page-video').each((_, element) => {
         const vScope = $(element).attr('v-scope'); // 获取 v-scope 属性
