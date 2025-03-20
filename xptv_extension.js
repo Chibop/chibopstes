@@ -1,932 +1,336 @@
-/**
- * 123AV XPTV 扩展脚本 v3.0.0112
- */
-
+//1112
+// 创建cheerio实例，用于HTML解析
 const cheerio = createCheerio()
+// 创建CryptoJS实例，用于加密解密操作
 const CryptoJS = createCryptoJS()
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+// 设置用户代理，模拟Chrome浏览器访问，避免被网站识别为爬虫
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 
+// 应用基本配置信息
 let appConfig = {
-    ver: 1,
-    title: '123AV',
-    site: 'https://123av.com'
+    ver: 1,                              // 脚本版本号
+    title: '廠長',                       // 显示的站点名称
+    site: 'https://www.czzyvideo.com',   // 网站基础URL
 }
 
-// 添加一个全局缓存，用于保存视频ID
-let cachedVideoIds = {};
-
-// 添加随机延迟函数
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-// 修改请求方式，添加随机延迟
-async function safeRequest(url, options) {
-    await sleep(2000 + Math.random() * 3000); // 2-5秒随机延迟
-    return $fetch.get(url, options);
-}
-
-// 获取页面导航配置
+/**
+ * 获取应用配置信息，包括标签列表
+ * 此函数是XPTV脚本的入口点，返回整体配置信息
+ */
 async function getConfig() {
     let config = appConfig
-    config.tabs = await getTabs()
-    return jsonify(config)
+    config.tabs = await getTabs()  // 动态获取网站的分类标签
+    return jsonify(config)         // 转换为JSON格式返回
 }
 
-// 获取网站导航 - 恢复动态获取功能
+/**
+ * 获取网站的分类标签
+ * 从网站首页提取导航菜单分类
+ * 排除不需要的分类（如关于、公告等）
+ */
 async function getTabs() {
-    $print("获取分类标签")
-    
-    // 直接返回预定义的分类标签，使用图片中的实际分类链接
-    const tabs = [
-        { name: '審查版', ext: { url: `${appConfig.site}/zh/dm2/censored` } },
-        { name: '最近更新', ext: { url: `${appConfig.site}/zh/dm2/recent-update` } },
-        { name: '新发布', ext: { url: `${appConfig.site}/zh/dm2/new-release` } },
-        { name: '未審查', ext: { url: `${appConfig.site}/zh/dm2/uncensored` } },
-        { name: '未審查泄露', ext: { url: `${appConfig.site}/zh/dm2/uncensored-leaked` } },
-        { name: 'VR', ext: { url: `${appConfig.site}/zh/dm2/vr` } },
-        { name: '热门女優', ext: { url: `${appConfig.site}/zh/dm2/actresses?sort=most_viewed_today` } },
-        { name: '热门', ext: { url: `${appConfig.site}/zh/dm2/trending` } },
-        { name: '今天最热', ext: { url: `${appConfig.site}/zh/dm2/today-hot` } },
-        { name: '本周最热', ext: { url: `${appConfig.site}/zh/dm2/weekly-hot` } },
-        { name: '本月最热', ext: { url: `${appConfig.site}/zh/dm2/monthly-hot` } }
-    ]
-    
-    $print("预设分类标签数量: " + tabs.length)
-    return tabs
-}
-
-// 视频列表获取 - 修复分页问题
-async function getCards(ext) {
-    ext = argsify(ext)
-    let cards = []
-    let { page = 1, url } = ext
-    await $fetch.get('https://www.google.com/?视频列表页')
-    // 使用新的分页逻辑，适配dm2路径格式
-    if (page > 1) {
-        if (url.includes('?')) {
-            url += `&page=${page}`
-        } else {
-            // 对于dm2路径使用查询参数分页
-            url += `?page=${page}`
-        }
+    let list = []
+    // 定义需要忽略的分类名称关键词
+    let ignore = ['关于', '公告', '官方', '备用', '群', '地址', '求片']
+    // 检查分类名是否包含需要忽略的关键词
+    function isIgnoreClassName(className) {
+        return ignore.some((element) => className.includes(element))
     }
 
-    $print("请求URL: " + url)
-
-    try {
-        const headers = {
-            'User-Agent': UA,
-            'Referer': appConfig.site,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
-        }
-
-        const { data } = await $fetch.get(url, headers)
-
-        const $ = cheerio.load(data)
-        $print("页面加载成功，开始解析")
-
-        // 使用多种选择器组合，提高兼容性
-        $('.item, .box-item, li.videos-item').each((_, element) => {
-            let link, title, image, remarks
-            
-            // 尝试多种方式获取链接和标题
-            link = $(element).find('a').attr('href') || 
-                  $(element).find('.detail a').attr('href') || 
-                  $(element).find('.title a').attr('href')
-                  
-            title = $(element).find('img').attr('alt') || 
-                   $(element).find('a').attr('title') || 
-                   $(element).find('.detail a').text().trim() || 
-                   $(element).find('.title a').text().trim()
-                   
-            // 尝试多种方式获取图片
-            image = $(element).find('img').attr('data-src') || 
-                   $(element).find('img').attr('src') || 
-                   $(element).find('.thumb img').attr('data-src') || 
-                   $(element).find('.thumb img').attr('src')
-                   
-            // 尝试多种方式获取备注信息
-            remarks = $(element).find('.meta').text().trim() || 
-                     $(element).find('.duration').text().trim() || 
-                     $(element).find('.text-muted').text().trim()
-            
-            $print(`解析项目: 链接=${link}, 标题=${title}`)
-            
-            if (link && title) {
-                // 确保链接是完整的URL
-                if (!link.startsWith('http')) {
-                    if (link.startsWith('/zh/')) {
-                        link = `${appConfig.site}${link}`
-                    } else if (link.startsWith('/')) {
-                        link = `${appConfig.site}${link}`
-                    } else {
-                        link = `${appConfig.site}/zh/${link}`
-                    }
-                }
-                
-                cards.push({
-                    vod_id: link,
-                    vod_name: title,
-                    vod_pic: image,
-                    vod_remarks: remarks,
-                    ext: {
-                        url: link
-                    },
-                })
-            }
-        })
-
-        $print("找到卡片数量: " + cards.length)
-        
-        // 简化分页检测逻辑
-        let hasNext = false
-        // 如果当前页有内容，则假设有下一页
-        if (cards.length > 0) {
-            hasNext = true
-        }
-        
-        // 如果有明确的分页器，使用它来确定是否有下一页
-        if ($('.pagination').length > 0) {
-            hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
-        }
-        
-        return jsonify({
-            list: cards,
-            nextPage: hasNext ? page + 1 : null
-        })
-    } catch (e) {
-        $print("加载视频列表失败: " + e.message)
-        return jsonify({
-            list: [],
-            error: e.message
-        })
-    }
-}
-
-// 兼容性函数 - 将getCards暴露为getVideos，保持新版兼容性
-async function getVideos(ext) {
-
-    ext = argsify(ext)
-    const { url } = ext
-    await $fetch.get('https://www.google.com/?2')
-    try {
-        // 记录请求开始
-        await reportDiagnosis("START", url)
-        
-        // 请求视频详情页
-        const headers = {
-            'User-Agent': UA,
-            'Referer': appConfig.site,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
-        }
-
-        const { data } = await $fetch.get(url, headers)
-        
-        // 记录详情页获取成功
-        await reportDiagnosis("DETAIL_PAGE_SUCCESS", url.length.toString())
-        
-        // 使用cheerio解析页面
-        const $ = cheerio.load(data)
-        
-        // 提取基本信息
-        const title = $('h3.text-title').text().trim() || $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
-        const vod_pic = $('.content-detail .content_thumb img').attr('src') || $('.content-detail .thumb img').attr('src') || ''
-        const vod_remarks = $('.duration-views').text().trim() || $('.text-muted.text-sm').text().trim() || ''
-        
-        // 获取视频ID
-        const videoId = extractId(data, url)
-        
-        // 构建AJAX URL
-        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        
-        // 记录AJAX请求准备
-        await reportDiagnosis("AJAX_PREPARE", ajaxUrl)
-        
-        // 获取javplayer URL
-        const ajaxResponse = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': url,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        // 记录AJAX请求成功
-        await reportDiagnosis("AJAX_SUCCESS", "true")
-        
-        // 从AJAX响应提取javplayer URL
-        const ajaxData = ajaxResponse.data
-        let m3u8Url = null
-        
-        if (ajaxData && ajaxData.status === 200 && ajaxData.result && ajaxData.result.watch && ajaxData.result.watch.length > 0) {
-            // 提取并清理javplayer URL
-            const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-            
-            // 记录javplayer URL获取成功
-            await reportDiagnosis("JAVPLAYER_URL_SUCCESS", javplayerUrl.substring(0, 30))
-            
-            // 请求javplayer页面
-            const playerResponse = await $fetch.get(javplayerUrl, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-                    'Referer': 'https://123av.com/'
-                }
-            })
-            
-            // 记录javplayer页面获取成功
-            await reportDiagnosis("JAVPLAYER_PAGE_SUCCESS", "true")
-            
-            // 提取m3u8地址
-            const playerData = playerResponse.data
-            
-            // 尝试多种方式提取m3u8
-            m3u8Url = extractM3u8Url(playerData)
-            
-            if (m3u8Url) {
-                // 记录m3u8提取成功
-                await reportDiagnosis("M3U8_SUCCESS", m3u8Url.substring(0, 30))
-            } else {
-                // 记录m3u8提取失败
-                await reportDiagnosis("M3U8_FAIL", "true")
-            }
-        }
-        
-        // 构建播放选项
-        let playlist = []
-        
-        if (m3u8Url) {
-            // 成功获取m3u8地址
-            playlist.push({
-                title: "默认线路",
-                tracks: [
-                    {
-                        name: title,
-                        ext: {
-                            key: m3u8Url  // 直接传递m3u8地址
-                        }
-                    }
-                ]
-            })
-        } else {
-            // 解析失败
-            playlist.push({
-                title: "解析失败",
-                tracks: [
-                    {
-                        name: title,
-                        ext: {
-                            key: ""  // 空key表示无法播放
-                        }
-                    }
-                ]
-            })
-        }
-        
-        // 返回详情页信息
-        return jsonify({
-            vod_name: title,
-            vod_pic: vod_pic,
-            vod_remarks: vod_remarks,
-            vod_content: $('.text-description').text().trim() || '',
-            vod_play_from: "默认线路",
-            vod_play_url: title,
-            vod_director: $('meta[name="keywords"]').attr('content') || '',
-            playlist: playlist
-        })
-    } catch (e) {
-        // 记录总体失败
-        await reportDiagnosis("TOTAL_FAIL", e.message.substring(0, 50))
-        
-        return jsonify({
-            vod_name: "加载失败: " + e.message,
-            playlist: [
-                {
-                    title: "解析失败",
-                    tracks: []
-                }
-            ]
-        })
-    }
-}
-
-// 从页面提取视频ID
-function extractId(data, url) {
-    // 方法1：从Favourite函数参数提取
-    const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-    if (idMatch && idMatch[1]) {
-        return idMatch[1]
-    }
-    
-    // 方法2：从URL路径提取
-    return url.split('/').pop()
-}
-
-// 从javplayer页面提取m3u8地址
-function extractM3u8Url(data) {
-    // 尝试多种提取方式
-    // 方式1：HTML转义格式
-    const quotMatch = data.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-    if (quotMatch && quotMatch[1]) {
-        return quotMatch[1].replace(/\\\//g, '/')
-    }
-    
-    // 方式2：JSON格式
-    const streamMatch = data.match(/["']stream["']\s*:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/i)
-    if (streamMatch && streamMatch[1]) {
-        return streamMatch[1].replace(/\\\//g, '/')
-    }
-    
-    // 方式3：直接URL格式
-    const urlMatch = data.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/i)
-    if (urlMatch) {
-        return urlMatch[0]
-    }
-    
-    return null
-}
-
-// 获取视频详情和播放列表 (关键修复)
-async function getTracks(ext) {
-    ext = argsify(ext)
-    const { url } = ext
-    
-    // 初始化空数组，使用push方法添加
-    let tracks = []
-    
-    // 打印初始参数
-    await $fetch.get(`https://www.google.com/?init_params=${encodeURIComponent(JSON.stringify({ url }))}`)
-    
-    // 打印传入getTracks的参数
-    await $fetch.get(`https://www.google.com/?getTracks_ext=${encodeURIComponent(JSON.stringify(ext))}`)
-    
-    $print("视频详情页URL: " + url)
-    
-    const headers = {
-        'User-Agent': UA,
-        'Referer': appConfig.site,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
-    }
-
-    const { data } = await $fetch.get(url, headers)
-    
-    const $ = cheerio.load(data)
-    
-    // 提取视频标题
-    const title = $('h3.text-title').text().trim() || $('.content-detail h1.title').text().trim() || $('h1.title').text().trim() || '未知标题'
-    
-    // 从详情页提取视频ID
-    let videoId = null
-    const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-    if (idMatch && idMatch[1]) {
-        videoId = idMatch[1]
-        $print("从详情页提取到视频ID: " + videoId)
-        
-        // 保存视频ID到缓存中，使用URL作为键
-        cachedVideoIds[url] = videoId;
-        await $fetch.get(`https://www.google.com/?${videoId}`)
-    }
-    
-    // 从URL提取视频路径(备用)
-    const videoPath = url.split('/').pop()
-    // 构建AJAX URL
-    let ajaxUrl = null
-    if (videoId) {
-        await $fetch.get('https://www.google.com/?5333')
-        ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        await $fetch.get(`https://www.google.com/?${ajaxUrl}`)
-        
-        // 使用push方法添加track
-        tracks.push({
-            name: title || 'default',
-            pan: '',  // 保持与其他文件一致
-            ext: {
-                url: ajaxUrl  // 只传递一个必要参数
-            }
-        })
-        
-        // 打印构建的track对象
-        await $fetch.get(`https://www.google.com/?track_object=${encodeURIComponent(JSON.stringify(tracks[0]))}`)
-    } else {
-        await $fetch.get('https://www.google.com/?5553')
-        ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
-    }
-    
-    $print("步骤1: 请求AJAX URL: " + ajaxUrl)
-    
-    // 步骤1: 请求AJAX获取javplayer URL
-    const { data: ajaxData } = await $fetch.get(ajaxUrl, {
+    // 请求网站首页
+    const { data } = await $fetch.get(appConfig.site, {
         headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site,
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    
-    // 检查AJAX响应
-    if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
-        $print("AJAX响应无效，无法获取javplayer URL")
-        return createDefaultTracks(title, url)
-    }
-    
-    // 步骤2: 获取javplayer URL
-    const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-    $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
-    
-    // 步骤3: 请求javplayer页面获取m3u8
-    const { data: playerData } = await $fetch.get(javplayerUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-            'Referer': 'https://123av.com/'
-        }
-    })
-    
-    // 步骤4: 从javplayer页面提取m3u8地址
-    const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-    if (!m3u8Match || !m3u8Match[1]) {
-        $print("无法从javplayer页面提取m3u8地址")
-        return createDefaultTracks(title, url)
-    }
-    
-    // 获取m3u8地址
-    const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-    $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
-    
-    // 在构建tracks之前打印所有关键变量
-    await $fetch.get(`https://www.google.com/?debug_building_tracks=${encodeURIComponent(JSON.stringify({
-        title,
-        m3u8Url,
-        url,
-        ajaxUrl
-    }))}`)
-    
-    // 确保ext对象的正确构建
-    const trackExt = {
-        key: m3u8Url,
-        url: url,
-        ajaxUrl: ajaxUrl
-    }
-    
-    // 打印构建的ext对象
-    await $fetch.get(`https://www.google.com/?debug_track_ext=${encodeURIComponent(JSON.stringify(trackExt))}`)
-    
-    let tracks = [
-        {
-            name: title,
-            ext: trackExt
-        }
-    ]
-    
-    // 打印完整的tracks对象
-    await $fetch.get(`https://www.google.com/?debug_tracks=${encodeURIComponent(JSON.stringify(tracks))}`)
-    
-    const returnObj = {
-        list: [
-            {
-                title: "默认线路",
-                tracks: tracks
-            }
-        ]
-    }
-    
-    // 打印最终的返回对象
-    await $fetch.get(`https://www.google.com/?return_object=${encodeURIComponent(JSON.stringify(returnObj))}`)
-    
-    return jsonify(returnObj)
-}
-
-// 创建默认播放选项（当解析失败时使用）
-function createDefaultTracks(title, url) {
-    return jsonify({
-        list: [
-            {
-                title: "解析失败",
-                tracks: [
-                    {
-                        name: title,
-                        ext: {
-                            key: ""  // 空key表示无法播放
-                        }
-                    }
-                ]
-            }
-        ]
-    })
-}
-
-// 播放视频解析
-async function getPlayinfo(ext) {
-    await $fetch.get('https://www.google.com/?1111233')
-    
-    // 打印原始ext
-    await $fetch.get(`https://www.google.com/?raw_ext=${encodeURIComponent(JSON.stringify(ext))}`)
-    
-    ext = argsify(ext)
-    
-    // 打印argsify后的ext
-    await $fetch.get(`https://www.google.com/?after_argsify=${encodeURIComponent(JSON.stringify(ext))}`)
-    
-    // 只获取url参数
-    const { url } = ext
-    
-    // 打印解构后的url
-    await $fetch.get(`https://www.google.com/?extracted_url=${encodeURIComponent(url || 'undefined')}`)
-    
-    if (!url) {
-        return jsonify({ error: "缺少URL参数" })
-    }
-    
-    // 如果有ajaxUrl，直接访问它
-    if (ext.ajaxUrl) {
-        await $fetch.get(`https://www.google.com/?using_ajaxUrl=${encodeURIComponent(ext.ajaxUrl)}`)
-        await $fetch.get(ext.ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': url || appConfig.site,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-    }
-    
-    // 验证是否有m3u8地址
-    if (ext.key) {
-        await $fetch.get(`https://www.google.com/?m3u8=${encodeURIComponent(ext.key)}`)
-        return jsonify({
-            type: "hls",
-            url: ext.key,
-            header: {
-                "Referer": "https://javplayer.me/",
-                "User-Agent": UA
-            }
-        })
-    }
-    
-    await $fetch.get('https://www.google.com/?11121233')
-    $print("视频详情页URL: " + url)
-    
-    try {
-        // 强制访问视频详情页
-        const headers = {
-            'User-Agent': UA,
-            'Referer': appConfig.site,
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'Upgrade-Insecure-Requests': '1',
-            'Cookie': '从浏览器复制的Cookie，包含cf_clearance等关键Cookie'
-        }
-
-        // 强制访问详情页
-        const { data } = await $fetch.get(url, headers)
-        await $fetch.get('https://www.google.com/?1111234')
-        
-        const $ = cheerio.load(data)
-        
-        // 从详情页提取视频ID
-        let videoId = null
-        const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-        if (idMatch && idMatch[1]) {
-            videoId = idMatch[1]
-            $print("从详情页提取到视频ID: " + videoId)
-            
-            // 强制访问带视频ID的123地址
-            const videoApiUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-            await $fetch.get(videoApiUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    'Referer': url,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            await $fetch.get(`https://www.google.com/?${videoId}`)
-        }
-        
-        // 从URL提取视频路径(备用)
-        const videoPath = url.split('/').pop()
-        // 构建AJAX URL
-        let ajaxUrl = null
-        if (videoId) {
-            await $fetch.get('https://www.google.com/?53311113')
-            ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-            // 再次强制访问带视频ID的地址
-            await $fetch.get(ajaxUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    'Referer': url,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            await $fetch.get(`https://www.google.com/?${ajaxUrl}`)
-        } else {
-            await $fetch.get('https://www.google.com/?5553')
-            ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
-            await $fetch.get(ajaxUrl, {
-                headers: {
-                    'User-Agent': UA,
-                    'Referer': url,
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-        }
-        
-        $print("步骤1: 请求AJAX URL: " + ajaxUrl)
-        
-        // 步骤1: 请求AJAX获取javplayer URL
-        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        // 检查AJAX响应
-        if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
-            $print("AJAX响应无效，无法获取javplayer URL")
-            return jsonify({ error: "无法获取播放数据(AJAX)" })
-        }
-        
-        // 步骤2: 获取javplayer URL
-        const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-        $print("步骤2: 获取到javplayer URL: " + javplayerUrl)
-        
-        // 步骤3: 请求javplayer页面获取m3u8
-        const { data: playerData } = await $fetch.get(javplayerUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
-                'Referer': 'https://123av.com/'
-            }
-        })
-        
-        // 步骤4: 从javplayer页面提取m3u8地址
-        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-        if (!m3u8Match || !m3u8Match[1]) {
-            $print("无法从javplayer页面提取m3u8地址")
-            return jsonify({ error: "无法提取m3u8地址" })
-        }
-        
-        // 获取m3u8地址
-        const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-        $print("步骤4: 成功获取m3u8地址: " + m3u8Url)
-        
-        // 返回播放数据
-        return jsonify({
-            type: "hls",
-            url: m3u8Url,
-            header: {
-                "Referer": "https://javplayer.me/",
-                "User-Agent": UA
-            }
-        })
-    } catch (e) {
-        $print("访问视频详情页失败: " + e.message)
-        await $fetch.get('https://www.google.com/?error=' + encodeURIComponent(e.message))
-        return jsonify({ error: "访问视频详情页失败: " + e.message })
-    }
-}
-
-// 从页面提取视频ID
-async function extractVideoIdFromPage(pageUrl) {
-    try {
-        const { data } = await $fetch.get(pageUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site
-            }
-        })
-        await $fetch.get('https://www.google.com/?8')
-        // 提取视频ID - 最可靠的方法
-        const idMatch = data.match(/Favourite\(['"]movie['"],\s*(\d+)/)
-        if (idMatch && idMatch[1]) {
-            return idMatch[1]
-        }
-        
-        return null
-    } catch (e) {
-        $print("获取页面失败: " + e.message)
-        return null
-    }
-}
-
-// 使用视频ID获取javplayer URL
-async function getJavplayerUrlWithId(videoId, lang = "zh") {
-    try {
-        await $fetch.get('https://www.google.com/?9')
-        const ajaxUrl = `${appConfig.site}/${lang}/ajax/v/${videoId}/videos`
-        $print("请求AJAX API: " + ajaxUrl)
-        
-        const { data } = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        if (data && data.status === 200 && data.result) {
-            const { watch } = data.result
-            
-            if (watch && watch.length > 0 && watch[0].url) {
-                $print("获取到javplayer URL: " + watch[0].url)
-                return watch[0].url
-            }
-        }
-        
-        $print("AJAX响应中没有找到有效链接")
-        return null
-    } catch (e) {
-        $print("AJAX请求失败: " + e.message)
-        return null
-    }
-}
-
-// 使用视频路径获取javplayer URL
-async function getJavplayerUrlWithPath(videoPath) {
-    try {
-        await $fetch.get('https://www.google.com/?10')
-        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoPath}/videos`
-        $print("请求AJAX API (路径): " + ajaxUrl)
-        
-        const { data } = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        if (data && data.status === 200 && data.result) {
-            const { watch } = data.result
-            
-            if (watch && watch.length > 0 && watch[0].url) {
-                $print("获取到javplayer URL: " + watch[0].url)
-                return watch[0].url
-            }
-        }
-        
-        $print("路径方式AJAX响应中没有找到有效链接")
-        return null
-    } catch (e) {
-        $print("路径方式AJAX请求失败: " + e.message)
-        return null
-    }
-}
-
-// 从javplayer获取m3u8地址
-async function getM3u8FromJavplayer(ext) {
-    ext = argsify(ext)
-    const { url } = ext
-    await $fetch.get('https://www.google.com/?11')
-    if (!url) {
-        $print("未提供视频URL")
-        return null
-    }
-    
-    try {
-        // 首先尝试从缓存中获取ID
-        let videoId = cachedVideoIds[url];
-        
-        // 如果缓存中没有，尝试从页面提取
-        if (!videoId) {
-            $print("缓存中没有找到视频ID，从详情页提取: " + url)
-            videoId = await extractVideoIdFromPage(url)
-            
-            if (videoId) {
-                // 如果成功提取，保存到缓存
-                cachedVideoIds[url] = videoId;
-                $print("提取到视频ID并保存到缓存: " + videoId)
-            } else {
-                $print("无法从详情页提取视频ID")
-                return null
-            }
-        } else {
-            $print("使用缓存的视频ID: " + videoId)
-        }
-        
-        // 确保有了videoId再继续
-        if (!videoId) {
-            $print("无法获取有效的视频ID")
-            return null
-        }
-        
-        // 使用正确的videoId构建AJAX URL - 修复硬编码问题
-        const ajaxUrl = `${appConfig.site}/zh/ajax/v/${videoId}/videos`
-        $print("请求AJAX URL: " + ajaxUrl)
-        
-        // 请求AJAX获取javplayer URL
-        const { data: ajaxData } = await $fetch.get(ajaxUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': appConfig.site,
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        
-        // 检查AJAX响应
-        if (!ajaxData || ajaxData.status !== 200 || !ajaxData.result || !ajaxData.result.watch || !ajaxData.result.watch.length) {
-            $print("AJAX响应无效，无法获取javplayer URL")
-            return null
-        }
-        
-        // 从AJAX响应中提取javplayer URL
-        const javplayerUrl = ajaxData.result.watch[0].url.replace(/\\\//g, '/')
-        $print("获取到javplayer URL: " + javplayerUrl)
-        
-        // 请求javplayer页面获取m3u8
-        const { data: playerData } = await $fetch.get(javplayerUrl, {
-            headers: {
-                'User-Agent': UA,
-                'Referer': 'https://123av.com/'
-            }
-        })
-        
-        // 从javplayer页面提取m3u8地址
-        const m3u8Match = playerData.match(/&quot;stream&quot;:&quot;(.*?)&quot;/)
-        if (m3u8Match && m3u8Match[1]) {
-            const m3u8Url = m3u8Match[1].replace(/\\\//g, '/')
-            $print("成功提取m3u8地址: " + m3u8Url)
-            return m3u8Url
-        }
-        
-        $print("无法从javplayer页面提取m3u8 URL")
-        return null
-    } catch (e) {
-        $print("获取m3u8失败: " + e.message)
-        return null
-    }
-}
-
-// 搜索功能
-async function search(ext) {
-    ext = argsify(ext)
-    let cards = []
-    const { wd, page = 1 } = ext
-    
-    // 构建搜索URL
-    const searchUrl = `${appConfig.site}/zh/search?q=${encodeURIComponent(wd)}&page=${page}`
-    $print("搜索URL: " + searchUrl)
-    
-    const { data } = await $fetch.get(searchUrl, {
-        headers: {
-            'User-Agent': UA,
-            'Referer': appConfig.site
+            'User-Agent': UA,  // 使用预定义的User-Agent
         },
     })
-    
-    const $ = cheerio.load(data)
-    
-    $('.box-item').each((_, element) => {
-        const title = $(element).find('.detail a').text().trim()
-        const link = $(element).find('.detail a').attr('href')
-        const image = $(element).find('.thumb img').attr('data-src') || $(element).find('.thumb img').attr('src')
-        const remarks = $(element).find('.duration').text().trim()
-        
-        if (link && title) {
-            let fullUrl = ''
-            if (link.startsWith('http')) {
-                fullUrl = link
-            } else if (link.startsWith('/zh/')) {
-                fullUrl = `${appConfig.site}${link}`
-            } else if (link.startsWith('/')) {
-                fullUrl = `${appConfig.site}/zh${link}`
-            } else {
-                fullUrl = `${appConfig.site}/zh/${link}`
-            }
-            
-            cards.push({
-                vod_id: link,
-                vod_name: title,
-                vod_pic: image,
-                vod_remarks: remarks,
-                ext: {
-                    url: fullUrl
-                },
-            })
-        }
+    const $ = cheerio.load(data)  // 使用cheerio加载HTML，便于解析
+
+    // 查找导航菜单中的所有分类链接
+    let allClass = $('ul.submenu_mi > li > a')
+    allClass.each((i, e) => {
+        const name = $(e).text()           // 获取分类名称
+        const href = $(e).attr('href')     // 获取分类链接
+        const isIgnore = isIgnoreClassName(name)  // 检查是否需要忽略
+        if (isIgnore) return  // 如果需要忽略则跳过
+
+        // 添加到分类列表
+        list.push({
+            name,  // 分类名称
+            ext: {
+                url: appConfig.site + href,  // 完整的分类URL
+            },
+        })
     })
-    
-    $print("搜索结果数量: " + cards.length)
-    
-    // 处理分页
-    const hasNext = $('.pagination .page-item:last-child').hasClass('disabled') === false
-    
+
+    return list  // 返回分类列表
+}
+
+/**
+ * 获取视频卡片列表
+ * 根据分类URL获取该分类下的视频列表
+ * 支持分页加载
+ */
+async function getCards(ext) {
+    ext = argsify(ext)  // 解析传入的参数
+    let cards = []      // 存储视频卡片信息
+    let { page = 1, url } = ext  // 获取页码和URL，默认为第一页
+
+    // 处理分页URL
+    if (page > 1) {
+        url += `/page/${page}`  // 网站分页格式：/page/页码
+    }
+
+    // 请求分类页面
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    const $ = cheerio.load(data)  // 解析HTML
+
+    // 查找并遍历所有视频卡片
+    $('.bt_img.mi_ne_kd.mrb ul > li').each((_, element) => {
+        const href = $(element).find('a').attr('href')              // 视频详情链接
+        const title = $(element).find('img').attr('alt')            // 视频标题
+        const cover = $(element).find('img').attr('data-original')  // 视频封面图
+        const subTitle = $(element).find('.jidi span').text()       // 剧集信息
+        const hdinfo = $(element).find('.hdinfo span').text()       // 清晰度信息
+        // 添加视频卡片信息
+        cards.push({
+            vod_id: href,                 // 视频ID(使用链接作为ID)
+            vod_name: title,              // 视频名称
+            vod_pic: cover,               // 视频封面
+            vod_remarks: subTitle || hdinfo,  // 备注信息(优先显示剧集信息，其次是清晰度)
+            ext: {
+                url: href,                // 视频详情页URL
+            },
+        })
+    })
+
+    // 返回视频卡片列表
     return jsonify({
         list: cards,
-        nextPage: hasNext ? page + 1 : null
+    })
+}
+
+/**
+ * 获取视频播放列表
+ * 从视频详情页提取各个播放源和网盘链接
+ */
+async function getTracks(ext) {
+    ext = argsify(ext)  // 解析传入的参数
+    let tracks = []     // 存储播放列表
+    let url = ext.url   // 获取视频详情页URL
+
+    // 请求视频详情页
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    const $ = cheerio.load(data)  // 解析HTML
+
+    // 提取所有播放源
+    $('.paly_list_btn a').each((_, e) => {
+        const name = $(e).text()           // 播放源名称
+        const href = $(e).attr('href')     // 播放页面链接
+        tracks.push({
+            name: `${name}`,               // 播放源名称
+            pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
+            ext: {
+                url: href,                 // 播放页面URL
+            },
+        })
+    })
+
+    // 提取网盘链接
+    const panlist = $('.ypbt_down_list')
+    if (panlist) {
+        panlist.find('ul li').each((_, e) => {
+            const name = $(e).find('a').text().trim()    // 网盘名称
+            const href = $(e).find('a').attr('href')     // 网盘链接
+            // 只处理特定类型的网盘链接
+            if (!/ali|quark|115|uc/.test(href)) return
+            tracks.push({
+                name: name,                // 网盘名称
+                pan: href,                 // 网盘链接
+            })
+        })
+    }
+
+    // 注释掉的提示消息
+    // $utils.toastInfo('不能看的在群裡回報')
+
+    // 返回播放列表
+    return jsonify({
+        list: [
+            {
+                title: '默认分组',      // 分组标题
+                tracks,                 // 播放列表
+            },
+        ],
+    })
+}
+
+/**
+ * 获取视频播放信息
+ * 从播放页面解析出实际的视频播放地址
+ * 包含两种不同的解析逻辑，应对不同的页面结构
+ */
+async function getPlayinfo(ext) {
+    ext = argsify(ext)         // 解析传入的参数
+    const url = ext.url        // 获取播放页面URL
+
+    // 请求播放页面
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+    let playurl                // 存储最终的播放URL
+
+    try {
+        const $ = cheerio.load(data)  // 解析HTML
+
+        // 解析方法1：通过iframe获取播放器链接
+        const jsurl = $('iframe').attr('src')
+        if (jsurl) {
+            // 设置请求头
+            let headers = {
+                'user-agent': UA,
+            }
+            // 特殊处理player-v2链接
+            if (jsurl.includes('player-v2')) {
+                headers['sec-fetch-dest'] = 'iframe'
+                headers['sec-fetch-mode'] = 'navigate'
+                headers['referer'] = `${appConfig.site}/`
+            }
+
+            // 请求播放器页面
+            const jsres = await $fetch.get(jsurl, { headers: headers })
+            const $2 = cheerio.load(jsres.data)
+            const scripts = $2('script')
+            if (scripts.length - 2 > 0) {
+                // 获取倒数第二个script标签的内容
+                let code = scripts.eq(scripts.length - 2).text()
+
+                // 解析方法1.1：处理var player格式的加密
+                if (code.includes('var player')) {
+                    // 提取加密数据和随机密钥
+                    let player = code.match(/var player = "(.*?)"/)
+                    let rand = code.match(/var rand = "(.*?)"/)
+
+                    // AES解密函数
+                    function decrypt(text, key, iv, type) {
+                        let key_value = CryptoJS.enc.Utf8.parse(key || 'PBfAUnTdMjNDe6pL')
+                        let iv_value = CryptoJS.enc.Utf8.parse(iv || 'sENS6bVbwSfvnXrj')
+                        let content
+                        if (type) {
+                            // 加密
+                            content = CryptoJS.AES.encrypt(text, key_value, {
+                                iv: iv_value,
+                                mode: CryptoJS.mode.CBC,
+                                padding: CryptoJS.pad.Pkcs7,
+                            })
+                        } else {
+                            // 解密
+                            content = CryptoJS.AES.decrypt(text, key_value, {
+                                iv: iv_value,
+                                padding: CryptoJS.pad.Pkcs7,
+                            }).toString(CryptoJS.enc.Utf8)
+                        }
+                        return content
+                    }
+
+                    // 使用AES解密获取播放信息
+                    let content = JSON.parse(decrypt(player[1], 'VFBTzdujpR9FWBhe', rand[1]))
+                    $print(JSON.stringify(content))
+                    playurl = content.url  // 提取播放URL
+                } else {
+                    // 解析方法1.2：处理另一种加密格式
+                    // 提取加密数据
+                    let data = code.split('"data":"')[1].split('"')[0]
+                    // 字符串反转
+                    let encrypted = data.split('').reverse().join('')
+                    let temp = ''
+                    // 十六进制解码
+                    for (let i = 0x0; i < encrypted.length; i = i + 0x2) {
+                        temp += String.fromCharCode(parseInt(encrypted[i] + encrypted[i + 0x1], 0x10))
+                    }
+                    // 提取有效部分，去除混淆数据
+                    playurl = temp.substring(0x0, (temp.length - 0x7) / 0x2) + temp.substring((temp.length - 0x7) / 0x2 + 0x7)
+                }
+            }
+        } else {
+            // 解析方法2：处理window.wp_nonce格式
+            const script = $('script:contains(window.wp_nonce)')
+            if (script.length > 0) {
+                let code = script.eq(0).text()
+                // 提取JavaScript代码
+                let group = code.match(/(var.*)eval\((\w*\(\w*\))\)/)
+                const md5 = CryptoJS
+                // 执行JavaScript代码获取结果
+                const result = eval(group[1] + group[2])
+                // 提取播放URL
+                playurl = result.match(/url:.*?['"](.*?)['"]/)[1]
+            }
+        }
+    } catch (error) {
+        $print(error)  // 输出错误信息以便调试
+    }
+
+    // 返回播放信息，包括视频URL和请求头
+    return jsonify({ urls: [playurl], headers: [{ 'User-Agent': UA }] })
+}
+
+/**
+ * 搜索功能
+ * 根据关键词搜索视频
+ * 支持分页
+ */
+async function search(ext) {
+    ext = argsify(ext)  // 解析传入的参数
+    let cards = []      // 存储搜索结果
+
+    let text = encodeURIComponent(ext.text)  // URL编码搜索关键词
+    let page = ext.page || 1                 // 获取页码，默认为第一页
+    // 构建搜索URL，网站使用特殊的URL路径进行搜索
+    let url = `${appConfig.site}/daoyongjiek0shibushiyoubing?q=${text}$f=_all&p=${page}`
+
+    // 请求搜索页面
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    const $ = cheerio.load(data)  // 解析HTML
+
+    // 查找并遍历所有搜索结果
+    $('div.bt_img > ul li').each((_, element) => {
+        const href = $(element).find('a').attr('href')              // 视频详情链接
+        const title = $(element).find('img.thumb').attr('alt')      // 视频标题
+        const cover = $(element).find('img.thumb').attr('data-original')  // 视频封面图
+        const subTitle = $(element).find('.jidi span').text()       // 剧集信息
+        const hdinfo = $(element).find('.hdinfo .qb').text()        // 清晰度信息
+        // 添加搜索结果信息
+        cards.push({
+            vod_id: href,                 // 视频ID(使用链接作为ID)
+            vod_name: title,              // 视频名称
+            vod_pic: cover,               // 视频封面
+            vod_remarks: subTitle || hdinfo,  // 备注信息(优先显示剧集信息，其次是清晰度)
+            url: href,                    // 视频详情页URL(冗余字段)
+            ext: {
+                url: href,                // 视频详情页URL
+            },
+        })
+    })
+
+    // 返回搜索结果
+    return jsonify({
+        list: cards,
     })
 }
