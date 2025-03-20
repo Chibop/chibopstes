@@ -11,7 +11,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 let appConfig = {
     ver: 1,                              // 脚本版本号
     title: '廠長',                       // 显示的站点名称
-    site: 'https://www.czzyvideo.com',   // 网站基础URL
+    site: 'https://123av.com/zh',   // 网站基础URL
 }
 
 /**
@@ -47,7 +47,7 @@ async function getTabs() {
     const $ = cheerio.load(data)  // 使用cheerio加载HTML，便于解析
 
     // 查找导航菜单中的所有分类链接
-    let allClass = $('ul.submenu_mi > li > a')
+    let allClass = $('ul.nav > li')
     allClass.each((i, e) => {
         const name = $(e).text()           // 获取分类名称
         const href = $(e).attr('href')     // 获取分类链接
