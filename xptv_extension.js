@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 6,                              // 脚本版本号
+    ver: 7,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -78,7 +78,7 @@ async function getCards(ext) {
 
     // 处理分页URL
     if (page > 1) {
-        url += `/page/${page}`  // 网站分页格式：/page/页码
+        url += `?page=${page}`  // 网站分页格式：/page/页码
     }
 
     // 请求分类页面
@@ -133,9 +133,9 @@ async function getTracks(ext) {
     const $ = cheerio.load(data)  // 解析HTML
 
     // 提取所有播放源
-    $('.paly_list_btn a').each((_, e) => {
-        const name = $(e).text()           // 播放源名称
-        const href = $(e).attr('href')     // 播放页面链接
+    $('link[rel="alternate').each((_, e) => {
+        const name = $(element).attr('hreflang')           // 播放源名称
+        const href = $(element).attr('href')     // 播放页面链接
         tracks.push({
             name: `${name}`,               // 播放源名称
             pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
@@ -144,21 +144,6 @@ async function getTracks(ext) {
             },
         })
     })
-
-    // 提取网盘链接
-    const panlist = $('.ypbt_down_list')
-    if (panlist) {
-        panlist.find('ul li').each((_, e) => {
-            const name = $(e).find('a').text().trim()    // 网盘名称
-            const href = $(e).find('a').attr('href')     // 网盘链接
-            // 只处理特定类型的网盘链接
-            if (!/ali|quark|115|uc/.test(href)) return
-            tracks.push({
-                name: name,                // 网盘名称
-                pan: href,                 // 网盘链接
-            })
-        })
-    }
 
     // 注释掉的提示消息
     // $utils.toastInfo('不能看的在群裡回報')
