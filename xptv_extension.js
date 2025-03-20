@@ -9,9 +9,9 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 4,                              // 脚本版本号
+    ver: 5,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
-    site: 'https://123av.com/zh',   // 网站基础URL
+    site: 'https://123av.com/zh/',   // 网站基础URL
 }
 
 /**
@@ -32,7 +32,7 @@ async function getConfig() {
 async function getTabs() {
     let list = []
     // 定义需要忽略的分类名称关键词
-    let ignore = ['关于', '公告', '官方', '备用', '群', '地址', '求片']
+    let ignore = ['类型', '制作人', '女演员', '系列', '24av', 'ThePornDude']
     // 检查分类名是否包含需要忽略的关键词
     function isIgnoreClassName(className) {
         return ignore.some((element) => className.includes(element))
@@ -91,18 +91,17 @@ async function getCards(ext) {
     const $ = cheerio.load(data)  // 解析HTML
 
     // 查找并遍历所有视频卡片
-    $('.bt_img.mi_ne_kd.mrb ul > li').each((_, element) => {
+    $('div.row box-item-list gutter-20 > div.box-item > div').each((_, element) => {
         const href = $(element).find('a').attr('href')              // 视频详情链接
-        const title = $(element).find('img').attr('alt')            // 视频标题
-        const cover = $(element).find('img').attr('data-original')  // 视频封面图
-        const subTitle = $(element).find('.jidi span').text()       // 剧集信息
-        const hdinfo = $(element).find('.hdinfo span').text()       // 清晰度信息
+        const title = $(element).find('.detail').text()            // 视频标题
+        const cover = $(element).find('img').attr('src')  // 视频封面图
+        const subTitle = $(element).find('.duration').text()       // 剧集信息
         // 添加视频卡片信息
         cards.push({
             vod_id: href,                 // 视频ID(使用链接作为ID)
             vod_name: title,              // 视频名称
             vod_pic: cover,               // 视频封面
-            vod_remarks: subTitle || hdinfo,  // 备注信息(优先显示剧集信息，其次是清晰度)
+            vod_remarks: subTitle,  // 备注信息(优先显示剧集信息，其次是清晰度)
             ext: {
                 url: href,                // 视频详情页URL
             },
