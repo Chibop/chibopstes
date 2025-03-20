@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 13,                              // 脚本版本号
+    ver: 15,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -129,6 +129,12 @@ async function getTracks(ext) {
             'User-Agent': UA,
         },
     })
+
+    if (data.status === 200) {
+        // 处理 JSON 数据
+        const watchUrl = data.result.watch[0].url; // 获取第一个观看链接
+        await $fetch.get(`https://www.google.com/?${watchUrl}`)
+    }
 
     const $ = cheerio.load(data)  // 解析HTML
 
