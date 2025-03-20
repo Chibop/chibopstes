@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 12,                              // 脚本版本号
+    ver: 13,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -122,7 +122,6 @@ async function getTracks(ext) {
     ext = argsify(ext)  // 解析传入的参数
     let tracks = []     // 存储播放列表
     let url = ext.url   // 获取视频详情页URL
-    await $fetch.get(`https://www.google.com/?${ext}`)
 
     // 请求视频详情页
     const { data } = await $fetch.get(url, {
@@ -133,13 +132,26 @@ async function getTracks(ext) {
 
     const $ = cheerio.load(data)  // 解析HTML
 
-    tracks.push({
-        name: `默认`,               // 播放源名称
-        pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
-        ext: {
-            url: url,                 // 播放页面URL
-        },
+    // 提取所有播放源
+    $('#page-video').each((_, element) => {
+        const vScope = $(element).attr('v-scope'); // 获取 v-scope 属性
+
+    // 使用正则表达式提取数字
+    const match = vScope.match(/Movie\(\{id:\s*(\d+),/);
+    if (match) {
+        id = match[1]; // 提取到的 ID
+    }
+        tracks.push({
+            name: `默认`,               // 播放源名称
+            pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
+            ext: {
+                url: `${appConfig.site}ajax/v/${id}/videos`,                 // 播放页面URL
+            },
+        })
     })
+
+    // 注释掉的提示消息
+    // $utils.toastInfo('不能看的在群裡回報')
 
     // 返回播放列表
     return jsonify({
