@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 3,                              // 脚本版本号
+    ver: 4,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh',   // 网站基础URL
 }
@@ -47,7 +47,7 @@ async function getTabs() {
     const $ = cheerio.load(data)  // 使用cheerio加载HTML，便于解析
 
     // 查找导航菜单中的所有分类链接
-    let allClass = $('ul.nav > li > ul > li > a')
+    let allClass = $('ul#nav > li.has-child > ul > li > a')
     allClass.each((i, e) => {
         const name = $(e).text()           // 获取分类名称
         const href = $(e).attr('href')     // 获取分类链接
