@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 11,                              // 脚本版本号
+    ver: 12,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -120,12 +120,35 @@ async function getCards(ext) {
  */
 async function getTracks(ext) {
     ext = argsify(ext)  // 解析传入的参数
+    let tracks = []     // 存储播放列表
     let url = ext.url   // 获取视频详情页URL
+    await $fetch.get(`https://www.google.com/?${ext}`)
+
+    // 请求视频详情页
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
+
+    const $ = cheerio.load(data)  // 解析HTML
+
+    tracks.push({
+        name: `默认`,               // 播放源名称
+        pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
+        ext: {
+            url: url,                 // 播放页面URL
+        },
+    })
 
     // 返回播放列表
     return jsonify({
-        title: '默认分组',
-        ext: url, // 直接返回传入的 URL
+        list: [
+            {
+                title: '默认分组',      // 分组标题
+                tracks,                 // 播放列表
+            },
+        ],
     })
 }
 
