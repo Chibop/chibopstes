@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 41,                              // 脚本版本号
+    ver: 42,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -157,7 +157,7 @@ async function getTracks(ext) {
             'User-Agent': UA,
         },
     })
-    const $data12 = cheerio.load(data12, null, false);
+    const $data12 = cheerio.load(data12);
     // const xxxx = cheerio.load(data12)  // 解析HTML
     // 提取 body 中的内容
     // const jsonString = $('body').html(); // 获取 <body> 标签中的内容
