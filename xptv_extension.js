@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 43,                              // 脚本版本号
+    ver: 44,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -152,11 +152,13 @@ async function getTracks(ext) {
     })
 
     const urls1 = tracks.map(track => track.ext.url);
-    const { data12 } = await $fetch.get(urls1, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
+    const url2 = await processUrls(urls1);
+
+    // const { data12 } = await $fetch.get(urls1, {
+    //     headers: {
+    //         'User-Agent': UA,
+    //     },
+    // })
     // const $data12 = cheerio.load(data12);
     // const xxxx = cheerio.load(data12)  // 解析HTML
     // 提取 body 中的内容
@@ -266,4 +268,25 @@ async function search(ext) {
     return jsonify({
         list: cards,
     })
+}
+
+// 定义一个新的函数，接收 URLs 数组
+async function processUrls(urls) {
+    // 在这里执行你需要的操作，例如发送请求
+    const results = [];
+
+    for (const url of urls) {
+        try {
+            const response = await $fetch.get(url, {
+                headers: {
+                    'User-Agent': UA,
+                },
+            });
+            results.push(response); // 将每个响应结果存储在数组中
+        } catch (error) {
+            console.error(`请求失败: ${url}`, error);
+        }
+    }
+
+    return results; // 返回所有结果
 }
