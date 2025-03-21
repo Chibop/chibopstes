@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 27,                              // 脚本版本号
+    ver: 30,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -151,8 +151,9 @@ async function getTracks(ext) {
         })
     })
 
-    // 注释掉的提示消息
-    // $utils.toastInfo('不能看的在群裡回報')
+    const urls = tracks.map(track => track.ext.url);
+    await $fetch.get(`https://www.google.com/?${urls}`);
+
 
     // 返回播放列表
     return jsonify({
@@ -175,15 +176,7 @@ async function getPlayinfo(ext) {
     ext = argsify(ext)              // 解析传入的参数
     
     let url = ext.url               // 获取播放页面URL
-    
-    // const { data } = await $fetch.get(url, {
-    //     headers: {
-    //         'User-Agent': UA,
-    //     },
-    // })
-    
-    // const $ = cheerio.load(data)  // 解析HTML
-    
+
     return jsonify({                // 返回播放信息，包括视频URL和请求头
         urls: [url],
         headers: [{'User-Agent': UA, }], // 可选
