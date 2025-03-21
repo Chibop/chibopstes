@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 36,                              // 脚本版本号
+    ver: 37,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -161,7 +161,7 @@ async function getTracks(ext) {
     // 提取 body 中的内容
     const jsonString = $('body').html(); // 获取 <body> 标签中的内容
     // 解析 JSON 字符串
-    const jsonData = JSON.parse(jsonString);    
+    // const jsonData = JSON.parse(jsonString);    
     // // 检查状态并提取 watch 数组
     // let cards = []     // 存储播放列表
     // if (jsonData.status === 200) {
