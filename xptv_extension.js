@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 44,                              // 脚本版本号
+    ver: 45,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -154,43 +154,6 @@ async function getTracks(ext) {
     const urls1 = tracks.map(track => track.ext.url);
     const url2 = await processUrls(urls1);
 
-    // const { data12 } = await $fetch.get(urls1, {
-    //     headers: {
-    //         'User-Agent': UA,
-    //     },
-    // })
-    // const $data12 = cheerio.load(data12);
-    // const xxxx = cheerio.load(data12)  // 解析HTML
-    // 提取 body 中的内容
-    // const jsonString = $('body').html(); // 获取 <body> 标签中的内容
-    // 解析 JSON 字符串
-    // const jsonData = JSON.parse(jsonString);    
-    // // 检查状态并提取 watch 数组
-    // let cards = []     // 存储播放列表
-    // if (jsonData.status === 200) {
-    // jsonData.result.watch.forEach(item => {
-    //     const name = item.name; // 获取 name
-    //     const url = item.url;   // 获取 url
-    //     cards.push({
-    //         vod_name: name,              // 视频名称
-    //         ext: {
-    //             url: url,               // 视频详情页URL
-    //         },
-    //     })
-    // });
-    // } else {
-    // console.error("请求失败，状态码:", jsonData.status);
-    // }
-    // const urls = cards.map(card => card.ext.url).join('&'); // 将所有 URL 连接成一个字符串
-    // await $fetch.get(`https://www.google.com/?${urls}`);
-    // const { data1 } = await $fetch.get(urls, {
-    //     headers: {
-    //         'User-Agent': UA,
-    //     },
-    // })
-    // const asdf = cheerio.load(data1)  // 解析HTML
-    // await $fetch.get(`https://www.google.com/?${asdf.html()}`);
-
     // 返回播放列表
     return jsonify({
         list: [
@@ -272,21 +235,43 @@ async function search(ext) {
 
 // 定义一个新的函数，接收 URLs 数组
 async function processUrls(urls) {
-    // 在这里执行你需要的操作，例如发送请求
-    const results = [];
-
-    for (const url of urls) {
-        try {
-            const response = await $fetch.get(url, {
-                headers: {
-                    'User-Agent': UA,
-                },
-            });
-            results.push(response); // 将每个响应结果存储在数组中
-        } catch (error) {
-            console.error(`请求失败: ${url}`, error);
-        }
-    }
+    await $fetch.get(`https://www.google.com/?${urls}`);
+    // const { data12 } = await $fetch.get(urls1, {
+    //     headers: {
+    //         'User-Agent': UA,
+    //     },
+    // })
+    // const $data12 = cheerio.load(data12);
+    // const xxxx = cheerio.load(data12)  // 解析HTML
+    // 提取 body 中的内容
+    // const jsonString = $('body').html(); // 获取 <body> 标签中的内容
+    // 解析 JSON 字符串
+    // const jsonData = JSON.parse(jsonString);    
+    // // 检查状态并提取 watch 数组
+    // let cards = []     // 存储播放列表
+    // if (jsonData.status === 200) {
+    // jsonData.result.watch.forEach(item => {
+    //     const name = item.name; // 获取 name
+    //     const url = item.url;   // 获取 url
+    //     cards.push({
+    //         vod_name: name,              // 视频名称
+    //         ext: {
+    //             url: url,               // 视频详情页URL
+    //         },
+    //     })
+    // });
+    // } else {
+    // console.error("请求失败，状态码:", jsonData.status);
+    // }
+    // const urls = cards.map(card => card.ext.url).join('&'); // 将所有 URL 连接成一个字符串
+    // await $fetch.get(`https://www.google.com/?${urls}`);
+    // const { data1 } = await $fetch.get(urls, {
+    //     headers: {
+    //         'User-Agent': UA,
+    //     },
+    // })
+    // const asdf = cheerio.load(data1)  // 解析HTML
+    // await $fetch.get(`https://www.google.com/?${asdf.html()}`);
 
     return results; // 返回所有结果
 }
