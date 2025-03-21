@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 21,                              // 脚本版本号
+    ver: 22,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -175,6 +175,11 @@ async function getPlayinfo(ext) {
 
     ext = argsify(ext)              // 解析传入的参数
     let url = ext.url               // 获取播放页面URL
+    const { data } = await $fetch.get(url, {
+        headers: {
+            'User-Agent': UA,
+        },
+    })
     const A123 = cheerio.load(data)  // 解析HTML
     if (A123.status === 200) {
         // 处理 JSON 数据
