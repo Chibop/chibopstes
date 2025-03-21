@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 23,                              // 脚本版本号
+    ver: 24,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -204,7 +204,7 @@ async function getPlayinfo(ext) {
     const urls = cards.map(card => card.ext.url).join('&'); // 将所有 URL 连接成一个字符串
     await $fetch.get(`https://www.google.com/?${urls}`);
     return jsonify({                // 返回播放信息，包括视频URL和请求头
-        urls: [url],
+        urls: [urls],
         headers: [{'User-Agent': UA, }], // 可选
     })
 
