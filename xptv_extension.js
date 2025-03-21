@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 19,                              // 脚本版本号
+    ver: 20,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -176,109 +176,120 @@ async function getTracks(ext) {
  * 包含两种不同的解析逻辑，应对不同的页面结构
  */
 async function getPlayinfo(ext) {
-    ext = argsify(ext)         // 解析传入的参数
-    const url = ext.url        // 获取播放页面URL
 
-    // 请求播放页面
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
+
+    ext = argsify(ext)
+    let url = ext.url
+    return jsonify({ 
+        urls: [url],
+        headers: [{'User-Agent': UA, }], // 可选
     })
-    let playurl                // 存储最终的播放URL
 
-    try {
-        const $ = cheerio.load(data)  // 解析HTML
 
-        // 解析方法1：通过iframe获取播放器链接
-        const jsurl = $('iframe').attr('src')
-        if (jsurl) {
-            // 设置请求头
-            let headers = {
-                'user-agent': UA,
-            }
-            // 特殊处理player-v2链接
-            if (jsurl.includes('player-v2')) {
-                headers['sec-fetch-dest'] = 'iframe'
-                headers['sec-fetch-mode'] = 'navigate'
-                headers['referer'] = `${appConfig.site}/`
-            }
 
-            // 请求播放器页面
-            const jsres = await $fetch.get(jsurl, { headers: headers })
-            const $2 = cheerio.load(jsres.data)
-            const scripts = $2('script')
-            if (scripts.length - 2 > 0) {
-                // 获取倒数第二个script标签的内容
-                let code = scripts.eq(scripts.length - 2).text()
+    // ext = argsify(ext)         // 解析传入的参数
+    // const url = ext.url        // 获取播放页面URL
 
-                // 解析方法1.1：处理var player格式的加密
-                if (code.includes('var player')) {
-                    // 提取加密数据和随机密钥
-                    let player = code.match(/var player = "(.*?)"/)
-                    let rand = code.match(/var rand = "(.*?)"/)
+    // // 请求播放页面
+    // const { data } = await $fetch.get(url, {
+    //     headers: {
+    //         'User-Agent': UA,
+    //     },
+    // })
+    // let playurl                // 存储最终的播放URL
 
-                    // AES解密函数
-                    function decrypt(text, key, iv, type) {
-                        let key_value = CryptoJS.enc.Utf8.parse(key || 'PBfAUnTdMjNDe6pL')
-                        let iv_value = CryptoJS.enc.Utf8.parse(iv || 'sENS6bVbwSfvnXrj')
-                        let content
-                        if (type) {
-                            // 加密
-                            content = CryptoJS.AES.encrypt(text, key_value, {
-                                iv: iv_value,
-                                mode: CryptoJS.mode.CBC,
-                                padding: CryptoJS.pad.Pkcs7,
-                            })
-                        } else {
-                            // 解密
-                            content = CryptoJS.AES.decrypt(text, key_value, {
-                                iv: iv_value,
-                                padding: CryptoJS.pad.Pkcs7,
-                            }).toString(CryptoJS.enc.Utf8)
-                        }
-                        return content
-                    }
+    // try {
+    //     const $ = cheerio.load(data)  // 解析HTML
 
-                    // 使用AES解密获取播放信息
-                    let content = JSON.parse(decrypt(player[1], 'VFBTzdujpR9FWBhe', rand[1]))
-                    $print(JSON.stringify(content))
-                    playurl = content.url  // 提取播放URL
-                } else {
-                    // 解析方法1.2：处理另一种加密格式
-                    // 提取加密数据
-                    let data = code.split('"data":"')[1].split('"')[0]
-                    // 字符串反转
-                    let encrypted = data.split('').reverse().join('')
-                    let temp = ''
-                    // 十六进制解码
-                    for (let i = 0x0; i < encrypted.length; i = i + 0x2) {
-                        temp += String.fromCharCode(parseInt(encrypted[i] + encrypted[i + 0x1], 0x10))
-                    }
-                    // 提取有效部分，去除混淆数据
-                    playurl = temp.substring(0x0, (temp.length - 0x7) / 0x2) + temp.substring((temp.length - 0x7) / 0x2 + 0x7)
-                }
-            }
-        } else {
-            // 解析方法2：处理window.wp_nonce格式
-            const script = $('script:contains(window.wp_nonce)')
-            if (script.length > 0) {
-                let code = script.eq(0).text()
-                // 提取JavaScript代码
-                let group = code.match(/(var.*)eval\((\w*\(\w*\))\)/)
-                const md5 = CryptoJS
-                // 执行JavaScript代码获取结果
-                const result = eval(group[1] + group[2])
-                // 提取播放URL
-                playurl = result.match(/url:.*?['"](.*?)['"]/)[1]
-            }
-        }
-    } catch (error) {
-        $print(error)  // 输出错误信息以便调试
-    }
+    //     // 解析方法1：通过iframe获取播放器链接
+    //     const jsurl = $('iframe').attr('src')
+    //     if (jsurl) {
+    //         // 设置请求头
+    //         let headers = {
+    //             'user-agent': UA,
+    //         }
+    //         // 特殊处理player-v2链接
+    //         if (jsurl.includes('player-v2')) {
+    //             headers['sec-fetch-dest'] = 'iframe'
+    //             headers['sec-fetch-mode'] = 'navigate'
+    //             headers['referer'] = `${appConfig.site}/`
+    //         }
 
-    // 返回播放信息，包括视频URL和请求头
-    return jsonify({ urls: [playurl], headers: [{ 'User-Agent': UA }] })
+    //         // 请求播放器页面
+    //         const jsres = await $fetch.get(jsurl, { headers: headers })
+    //         const $2 = cheerio.load(jsres.data)
+    //         const scripts = $2('script')
+    //         if (scripts.length - 2 > 0) {
+    //             // 获取倒数第二个script标签的内容
+    //             let code = scripts.eq(scripts.length - 2).text()
+
+    //             // 解析方法1.1：处理var player格式的加密
+    //             if (code.includes('var player')) {
+    //                 // 提取加密数据和随机密钥
+    //                 let player = code.match(/var player = "(.*?)"/)
+    //                 let rand = code.match(/var rand = "(.*?)"/)
+
+    //                 // AES解密函数
+    //                 function decrypt(text, key, iv, type) {
+    //                     let key_value = CryptoJS.enc.Utf8.parse(key || 'PBfAUnTdMjNDe6pL')
+    //                     let iv_value = CryptoJS.enc.Utf8.parse(iv || 'sENS6bVbwSfvnXrj')
+    //                     let content
+    //                     if (type) {
+    //                         // 加密
+    //                         content = CryptoJS.AES.encrypt(text, key_value, {
+    //                             iv: iv_value,
+    //                             mode: CryptoJS.mode.CBC,
+    //                             padding: CryptoJS.pad.Pkcs7,
+    //                         })
+    //                     } else {
+    //                         // 解密
+    //                         content = CryptoJS.AES.decrypt(text, key_value, {
+    //                             iv: iv_value,
+    //                             padding: CryptoJS.pad.Pkcs7,
+    //                         }).toString(CryptoJS.enc.Utf8)
+    //                     }
+    //                     return content
+    //                 }
+
+    //                 // 使用AES解密获取播放信息
+    //                 let content = JSON.parse(decrypt(player[1], 'VFBTzdujpR9FWBhe', rand[1]))
+    //                 $print(JSON.stringify(content))
+    //                 playurl = content.url  // 提取播放URL
+    //             } else {
+    //                 // 解析方法1.2：处理另一种加密格式
+    //                 // 提取加密数据
+    //                 let data = code.split('"data":"')[1].split('"')[0]
+    //                 // 字符串反转
+    //                 let encrypted = data.split('').reverse().join('')
+    //                 let temp = ''
+    //                 // 十六进制解码
+    //                 for (let i = 0x0; i < encrypted.length; i = i + 0x2) {
+    //                     temp += String.fromCharCode(parseInt(encrypted[i] + encrypted[i + 0x1], 0x10))
+    //                 }
+    //                 // 提取有效部分，去除混淆数据
+    //                 playurl = temp.substring(0x0, (temp.length - 0x7) / 0x2) + temp.substring((temp.length - 0x7) / 0x2 + 0x7)
+    //             }
+    //         }
+    //     } else {
+    //         // 解析方法2：处理window.wp_nonce格式
+    //         const script = $('script:contains(window.wp_nonce)')
+    //         if (script.length > 0) {
+    //             let code = script.eq(0).text()
+    //             // 提取JavaScript代码
+    //             let group = code.match(/(var.*)eval\((\w*\(\w*\))\)/)
+    //             const md5 = CryptoJS
+    //             // 执行JavaScript代码获取结果
+    //             const result = eval(group[1] + group[2])
+    //             // 提取播放URL
+    //             playurl = result.match(/url:.*?['"](.*?)['"]/)[1]
+    //         }
+    //     }
+    // } catch (error) {
+    //     $print(error)  // 输出错误信息以便调试
+    // }
+
+    // // 返回播放信息，包括视频URL和请求头
+    // return jsonify({ urls: [playurl], headers: [{ 'User-Agent': UA }] })
 }
 
 /**
