@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 48,                              // 脚本版本号
+    ver: 50,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -240,29 +240,27 @@ async function search(ext) {
 // 定义一个新的函数，接收 URLs 数组
 async function processUrls(urls) {
     const results = []; // 初始化 results 数组
-    
-    const response = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    });
-    // 假设 response.data 是你需要的数据
-    results.push(response.data); // 将响应数据存储在 results 中
 
-    // // 处理每个 URL
-    // for (const url of urls) {
-    //     try {
-    //         const response = await $fetch.get(url, {
-    //             headers: {
-    //                 'User-Agent': UA,
-    //             },
-    //         });
-    //         // 假设 response.data 是你需要的数据
-    //         results.push(response.data); // 将响应数据存储在 results 中
-    //     } catch (error) {
-    //         console.error(`请求失败: ${url}`, error);
-    //     }
-    // }
+    // 处理每个 URL
+    for (const url of urls) {
+        try {
+            const response = await $fetch.get(url, {
+                headers: {
+                    'User-Agent': UA,
+                },
+            });
+            // 假设 response.data 是你需要的数据
+
+            // 解析 JSON 字符串
+            const jsonData = JSON.parse(response.data); 
+            
+            
+
+            results.push(response.data); // 将响应数据存储在 results 中
+        } catch (error) {
+            console.error(`请求失败: ${url}`, error);
+        }
+    }
 
     return results; // 返回所有结果
 }
