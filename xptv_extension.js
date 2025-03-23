@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 77,                              // 脚本版本号
+    ver: 78,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -152,29 +152,6 @@ async function getTracks(ext) {
             })
         })
 
-        // 在代码中调用 processUrls 函数
-        const urls1 = tracks.map(track => track.ext.url); // 提取 URLs
-
-        // 调用新的函数并等待结果
-        const url2 = await processUrls(urls1);
-        const flattenedArray = url2[0]; // 取出第一层的数组
-
-        // 将 results 转换为字符串
-        const resultString = JSON.stringify(flattenedArray); // 将结果转换为 JSON 字符串
-        const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
-
-        // 将 results 转换为字符串
-        const resultString1 = JSON.stringify(tracks); // 将结果转换为 JSON 字符串
-        const encodedResult1 = encodeURIComponent(resultString1); // 对字符串进行编码
-
-        // 将 results 转换为字符串
-        const resultString2 = JSON.stringify(url2); // 将结果转换为 JSON 字符串
-        const encodedResult2 = encodeURIComponent(resultString2); // 对字符串进行编码
-
-        // 请求 Google，并打印结果
-        const googleResponse = await $fetch.get(`https://www.google.com/?data1=${encodedResult}`);
-        const googleResponse2 = await $fetch.get(`https://www.google.com/?data2=${encodedResult1}`);
-        const googleResponse3 = await $fetch.get(`https://www.google.com/?data3=${encodedResult2}`);
 
         // 返回播放列表
         return jsonify({
