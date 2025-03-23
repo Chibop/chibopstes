@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 86,                              // 脚本版本号
+    ver: 87,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -184,7 +184,6 @@ async function getPlayinfo(ext) {
     let url = ext.url               // 获取播放页面URL
 
     const url2 = await processUrls(url);
-    await $fetch.get(`https://www.google.com/?${url2}`);
 
     const { data } = await $fetch.get(url2, {
         headers: {
@@ -194,8 +193,10 @@ async function getPlayinfo(ext) {
     const $ = cheerio.load(data)  // 解析HTML
     // 提取 body 中的内容
     const jsonString = $('body').html(); // 获取 <body> 标签中的内容
+    await $fetch.get(`https://www.google.com/?${jsonString}`);
      // 解析 JSON 字符串
     const jsonData = JSON.parse(jsonString);    
+    await $fetch.get(`https://www.google.com/?${jsonData}`);
     //  // 检查状态并提取 watch 数组
     //  if (jsonData.status === 200) {
     //  jsonData.result.watch.forEach(item => {
