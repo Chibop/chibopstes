@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 78,                              // 脚本版本号
+    ver: 79,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -178,15 +178,13 @@ async function getTracks(ext) {
  */
 async function getPlayinfo(ext) {
 
-    await $fetch.get(`https://www.google.com/?data6=${ext}`);
-
     ext = argsify(ext)              // 解析传入的参数
-
-    await $fetch.get(`https://www.google.com/?data4=${ext}`);
     
     let url = ext.url               // 获取播放页面URL
 
-    await $fetch.get(`https://www.google.com/?data5=${url}`);
+    const url2 = await processUrls(url);
+    await $fetch.get(`https://www.google.com/?${url2}`);
+
 
     return jsonify({                // 返回播放信息，包括视频URL和请求头
         urls: [url],
@@ -244,44 +242,9 @@ async function search(ext) {
 }
 
 // 定义一个新的函数，接收 URLs 数组
-async function processUrls(urls) {
-    const results = []; // 初始化 results 数组
-
-    // 处理每个 URL
-    for (const url of urls) {
-        try {
-            const response = await $fetch.get(url, {
-                headers: {
-                    'User-Agent': UA,
-                },
-            });
-            // 假设 response.data 是你需要的数据
-
-            // 解析 JSON 字符串
-            const jsonData = JSON.parse(response.data); 
-            // 检查状态并提取 watch 数组
-            let cards = []     // 存储播放列表
-            if (jsonData.status === 200) {
-            jsonData.result.watch.forEach(item => {
-                const name = item.name; // 获取 name
-                const url = item.url;   // 获取 url
-                cards.push({
-                    name: `默认`,              // 视频名称
-                    pan: '',
-                    ext: {
-                        url: url,               // 视频详情页URL
-                    },
-                })
-            });
-            } else {
-            console.error("请求失败，状态码:", jsonData.status);
-            }    
-
-            results.push(cards); // 将响应数据存储在 results 中
-        } catch (error) {
-            console.error(`请求失败: ${url}`, error);
-        }
-    }
+async function processUrls(url) {
+    
+    let results = url
 
     return results; // 返回所有结果
 }
