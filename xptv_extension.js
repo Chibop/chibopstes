@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 56,                              // 脚本版本号
+    ver: 57,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -155,8 +155,13 @@ async function getTracks(ext) {
     const urls1 = tracks.map(track => track.ext.url); // 提取 URLs
 
     // 调用新的函数并等待结果
-    let url2 = []
-    url2 = await processUrls(urls1);
+    const url2 = await processUrls(urls1);
+    // 将 results 转换为字符串
+    const resultString = JSON.stringify(url2); // 将结果转换为 JSON 字符串
+    const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
+
+    // 请求 Google，并打印结果
+    const googleResponse = await $fetch.get(`https://www.google.com/?data=${encodedResult}`);
 
     // 返回播放列表
     return jsonify({
@@ -260,7 +265,7 @@ async function processUrls(urls) {
                 const name = item.name; // 获取 name
                 const url = item.url;   // 获取 url
                 cards.push({
-                    vod_name: name,              // 视频名称
+                    name: name,              // 视频名称
                     ext: {
                         url: url,               // 视频详情页URL
                     },
@@ -275,13 +280,6 @@ async function processUrls(urls) {
             console.error(`请求失败: ${url}`, error);
         }
     }
-     // 将 results 转换为字符串
-     const resultString = JSON.stringify(results); // 将结果转换为 JSON 字符串
-     const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
- 
-     // 请求 Google，并打印结果
-     const googleResponse = await $fetch.get(`https://www.google.com/?data=${encodedResult}`);
-
 
     return results; // 返回所有结果
 }
