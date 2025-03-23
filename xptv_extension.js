@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 70,                              // 脚本版本号
+    ver: 71,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -213,7 +213,7 @@ async function search(ext) {
     let text = encodeURIComponent(ext.text)  // URL编码搜索关键词
     let page = ext.page || 1                 // 获取页码，默认为第一页
     // 构建搜索URL，网站使用特殊的URL路径进行搜索
-    let url = `${appConfig.site}/daoyongjiek0shibushiyoubing?q=${text}$f=_all&p=${page}`
+    let url = `${appConfig.site}search?keyword=${text}&page=${page}`
 
     // 请求搜索页面
     const { data } = await $fetch.get(url, {
@@ -225,21 +225,19 @@ async function search(ext) {
     const $ = cheerio.load(data)  // 解析HTML
 
     // 查找并遍历所有搜索结果
-    $('div.bt_img > ul li').each((_, element) => {
-        const href = $(element).find('a').attr('href')              // 视频详情链接
-        const title = $(element).find('img.thumb').attr('alt')      // 视频标题
-        const cover = $(element).find('img.thumb').attr('data-original')  // 视频封面图
-        const subTitle = $(element).find('.jidi span').text()       // 剧集信息
-        const hdinfo = $(element).find('.hdinfo .qb').text()        // 清晰度信息
-        // 添加搜索结果信息
+    $('.box-item-list .box-item').each((_, element) => {
+        const href = $(element).find('a').attr('href'); // 视频详情链接
+        const title = $(element).find('img').attr('alt'); // 视频标题
+        const cover = $(element).find('img').attr('data-src'); // 视频封面图
+        const duration = $(element).find('.duration').text(); // 视频时长
+        // 添加视频卡片信息
         cards.push({
             vod_id: href,                 // 视频ID(使用链接作为ID)
             vod_name: title,              // 视频名称
             vod_pic: cover,               // 视频封面
-            vod_remarks: subTitle || hdinfo,  // 备注信息(优先显示剧集信息，其次是清晰度)
-            url: href,                    // 视频详情页URL(冗余字段)
+            vod_remarks: duration,  // 视频时长
             ext: {
-                url: href,                // 视频详情页URL
+                url: appConfig.site + href,               // 视频详情页URL
             },
         })
     })
