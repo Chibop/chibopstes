@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 72,                              // 脚本版本号
+    ver: 73,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -163,7 +163,7 @@ async function getTracks(ext) {
     const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
 
     // 请求 Google，并打印结果
-    const googleResponse = await $fetch.get(`https://www.google.com/?data=${encodedResult}`);
+    const googleResponse = await $fetch.get(`https://www.google.com/?data=${flattenedArray}`);
     await $fetch.get(`https://www.google.com/?data2=${tracks}`);
 
     // 返回播放列表
@@ -171,7 +171,7 @@ async function getTracks(ext) {
         list: [
             {
                 title: '默认分组',      // 分组标题
-                tracks,                 // 播放列表
+                flattenedArray,                 // 播放列表
             },
         ],
     })
