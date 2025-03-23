@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 87,                              // 脚本版本号
+    ver: 89,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -197,15 +197,15 @@ async function getPlayinfo(ext) {
      // 解析 JSON 字符串
     const jsonData = JSON.parse(jsonString);    
     await $fetch.get(`https://www.google.com/?${jsonData}`);
-    //  // 检查状态并提取 watch 数组
-    //  if (jsonData.status === 200) {
-    //  jsonData.result.watch.forEach(item => {
-    //      const url = item.url;   // 获取 url
-    //      cards.push(url)
-    //  });
-    //  } else {
-    //  console.error("请求失败，状态码:", jsonData.status);
-    //  }
+     // 检查状态并提取 watch 数组
+    if (jsonData.status === 200) {
+    jsonData.result.watch.forEach(item => {
+        const url = item.url;   // 获取 url
+        // cards.push(url)
+    });
+    } else {
+    console.error("请求失败，状态码:", jsonData.status);
+    }
     // await $fetch.get(`https://www.google.com/?${cards}`);
     let url3 = 'https://s211.skyearth8.xyz/vod1/1/ib/8j5dgm0k_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8'
 
