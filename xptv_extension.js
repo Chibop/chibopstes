@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 74,                              // 脚本版本号
+    ver: 75,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -171,10 +171,9 @@ async function getTracks(ext) {
     const encodedResult2 = encodeURIComponent(resultString2); // 对字符串进行编码
 
     // 请求 Google，并打印结果
-    const googleResponse = await $fetch.get(`https://www.google.com/?data=${encodedResult}`);
-    const googleResponse2 = await $fetch.get(`https://www.google.com/?data=${encodedResult1}`);
-    const googleResponse3 = await $fetch.get(`https://www.google.com/?data=${encodedResult2}`);
-    await $fetch.get(`https://www.google.com/?data2=${tracks}`);
+    const googleResponse = await $fetch.get(`https://www.google.com/?data1=${encodedResult}`);
+    const googleResponse2 = await $fetch.get(`https://www.google.com/?data2=${encodedResult1}`);
+    const googleResponse3 = await $fetch.get(`https://www.google.com/?data3=${encodedResult2}`);
 
     // 返回播放列表
     return jsonify({
@@ -194,7 +193,7 @@ async function getTracks(ext) {
  */
 async function getPlayinfo(ext) {
 
-    await $fetch.get(`https://www.google.com/?data3=${ext}`);
+    await $fetch.get(`https://www.google.com/?data6=${ext}`);
 
     ext = argsify(ext)              // 解析传入的参数
 
@@ -282,10 +281,10 @@ async function processUrls(urls) {
                 const name = item.name; // 获取 name
                 const url = item.url;   // 获取 url
                 cards.push({
-                    name: name,              // 视频名称
+                    name: `默认`,              // 视频名称
                     pan: '',
                     ext: {
-                        url: url,               // 视频详情页URL
+                        url: 'https://123av.com/zh/ajax/v/267936/videos',               // 视频详情页URL
                     },
                 })
             });
