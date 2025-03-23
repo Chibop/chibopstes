@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 75,                              // 脚本版本号
+    ver: 76,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -119,71 +119,79 @@ async function getCards(ext) {
  * 从视频详情页提取各个播放源和网盘链接
  */
 async function getTracks(ext) {
-    ext = argsify(ext)  // 解析传入的参数
-    let tracks = []     // 存储播放列表
-    let url = ext.url   // 获取视频详情页URL
+    try {
+        ext = argsify(ext)  // 解析传入的参数
+        let tracks = []     // 存储播放列表
+        let url = ext.url   // 获取视频详情页URL
 
-    // 请求视频详情页
-    const { data } = await $fetch.get(url, {
-        headers: {
-            'User-Agent': UA,
-        },
-    })
-
-    const $ = cheerio.load(data)  // 解析HTML
-
-
-    // 提取所有播放源
-    $('#page-video').each((_, element) => {
-        const vScope = $(element).attr('v-scope'); // 获取 v-scope 属性
-
-    // 使用正则表达式提取数字
-    const match = vScope.match(/Movie\(\{id:\s*(\d+),/);
-    if (match) {
-        id = match[1]; // 提取到的 ID
-        }
-        tracks.push({
-            name: `默认`,               // 播放源名称
-            pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
-            ext: {
-                url: `${appConfig.site}ajax/v/${id}/videos`,                 // 播放页面URL
+        // 请求视频详情页
+        const { data } = await $fetch.get(url, {
+            headers: {
+                'User-Agent': UA,
             },
         })
-    })
 
-    // 在代码中调用 processUrls 函数
-    const urls1 = tracks.map(track => track.ext.url); // 提取 URLs
+        const $ = cheerio.load(data)  // 解析HTML
 
-    // 调用新的函数并等待结果
-    const url2 = await processUrls(urls1);
-    const flattenedArray = url2[0]; // 取出第一层的数组
 
-    // 将 results 转换为字符串
-    const resultString = JSON.stringify(flattenedArray); // 将结果转换为 JSON 字符串
-    const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
+        // 提取所有播放源
+        $('#page-video').each((_, element) => {
+            const vScope = $(element).attr('v-scope'); // 获取 v-scope 属性
 
-    // 将 results 转换为字符串
-    const resultString1 = JSON.stringify(tracks); // 将结果转换为 JSON 字符串
-    const encodedResult1 = encodeURIComponent(resultString1); // 对字符串进行编码
+        // 使用正则表达式提取数字
+        const match = vScope.match(/Movie\(\{id:\s*(\d+),/);
+        if (match) {
+            id = match[1]; // 提取到的 ID
+            }
+            tracks.push({
+                name: `默认`,               // 播放源名称
+                pan: '',                       // 网盘链接(这里为空，因为是在线播放源)
+                ext: {
+                    url: `${appConfig.site}ajax/v/${id}/videos`,                 // 播放页面URL
+                },
+            })
+        })
 
-    // 将 results 转换为字符串
-    const resultString2 = JSON.stringify(url2); // 将结果转换为 JSON 字符串
-    const encodedResult2 = encodeURIComponent(resultString2); // 对字符串进行编码
+        // 在代码中调用 processUrls 函数
+        const urls1 = tracks.map(track => track.ext.url); // 提取 URLs
 
-    // 请求 Google，并打印结果
-    const googleResponse = await $fetch.get(`https://www.google.com/?data1=${encodedResult}`);
-    const googleResponse2 = await $fetch.get(`https://www.google.com/?data2=${encodedResult1}`);
-    const googleResponse3 = await $fetch.get(`https://www.google.com/?data3=${encodedResult2}`);
+        // 调用新的函数并等待结果
+        const url2 = await processUrls(urls1);
+        const flattenedArray = url2[0]; // 取出第一层的数组
 
-    // 返回播放列表
-    return jsonify({
-        list: [
-            {
-                title: '默认分组',      // 分组标题
-                googleResponse,                 // 播放列表
-            },
-        ],
-    })
+        // 将 results 转换为字符串
+        const resultString = JSON.stringify(flattenedArray); // 将结果转换为 JSON 字符串
+        const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
+
+        // 将 results 转换为字符串
+        const resultString1 = JSON.stringify(tracks); // 将结果转换为 JSON 字符串
+        const encodedResult1 = encodeURIComponent(resultString1); // 对字符串进行编码
+
+        // 将 results 转换为字符串
+        const resultString2 = JSON.stringify(url2); // 将结果转换为 JSON 字符串
+        const encodedResult2 = encodeURIComponent(resultString2); // 对字符串进行编码
+
+        // 请求 Google，并打印结果
+        const googleResponse = await $fetch.get(`https://www.google.com/?data1=${encodedResult}`);
+        const googleResponse2 = await $fetch.get(`https://www.google.com/?data2=${encodedResult1}`);
+        const googleResponse3 = await $fetch.get(`https://www.google.com/?data3=${encodedResult2}`);
+
+        // 返回播放列表
+        return jsonify({
+            list: [
+                {
+                    title: '默认分组',      // 分组标题
+                    flattenedArray,                 // 播放列表
+                },
+            ],
+        })
+    } catch (error) {
+        console.error("请求播放列表失败:", error);
+        await $fetch.get(`https://www.google.com/?data3=${error}`);
+        return jsonify({
+            error: "获取播放列表失败",
+        });
+    }
 }
 
 /**
@@ -284,7 +292,7 @@ async function processUrls(urls) {
                     name: `默认`,              // 视频名称
                     pan: '',
                     ext: {
-                        url: 'https://123av.com/zh/ajax/v/267936/videos',               // 视频详情页URL
+                        url: url,               // 视频详情页URL
                     },
                 })
             });
