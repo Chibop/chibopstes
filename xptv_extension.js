@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 52,                              // 脚本版本号
+    ver: 53,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -163,7 +163,7 @@ async function getTracks(ext) {
         list: [
             {
                 title: '默认分组',      // 分组标题
-                tracks,                 // 播放列表
+                url2,                 // 播放列表
             },
         ],
     })
@@ -268,10 +268,7 @@ async function processUrls(urls) {
             });
             } else {
             console.error("请求失败，状态码:", jsonData.status);
-            }
-            // const urls = cards.map(card => card.ext.url).join('&'); // 将所有 URL 连接成一个字符串
-            // await $fetch.get(`https://www.google.com/?${urls}`);            
-            
+            }    
 
             results.push(cards); // 将响应数据存储在 results 中
         } catch (error) {
@@ -281,41 +278,3 @@ async function processUrls(urls) {
 
     return results; // 返回所有结果
 }
-
-// await $fetch.get(`https://www.google.com/?${urls}`);
-    // const { data12 } = await $fetch.get(urls1, {
-    //     headers: {
-    //         'User-Agent': UA,
-    //     },
-    // })
-    // const $data12 = cheerio.load(data12);
-    // const xxxx = cheerio.load(data12)  // 解析HTML
-    // 提取 body 中的内容
-    // const jsonString = $('body').html(); // 获取 <body> 标签中的内容
-    // 解析 JSON 字符串
-    // const jsonData = JSON.parse(jsonString);    
-    // // 检查状态并提取 watch 数组
-    // let cards = []     // 存储播放列表
-    // if (jsonData.status === 200) {
-    // jsonData.result.watch.forEach(item => {
-    //     const name = item.name; // 获取 name
-    //     const url = item.url;   // 获取 url
-    //     cards.push({
-    //         vod_name: name,              // 视频名称
-    //         ext: {
-    //             url: url,               // 视频详情页URL
-    //         },
-    //     })
-    // });
-    // } else {
-    // console.error("请求失败，状态码:", jsonData.status);
-    // }
-    // const urls = cards.map(card => card.ext.url).join('&'); // 将所有 URL 连接成一个字符串
-    // await $fetch.get(`https://www.google.com/?${urls}`);
-    // const { data1 } = await $fetch.get(urls, {
-    //     headers: {
-    //         'User-Agent': UA,
-    //     },
-    // })
-    // const asdf = cheerio.load(data1)  // 解析HTML
-    // await $fetch.get(`https://www.google.com/?${asdf.html()}`);
