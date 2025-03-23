@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 54,                              // 脚本版本号
+    ver: 55,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -275,6 +275,9 @@ async function processUrls(urls) {
             console.error(`请求失败: ${url}`, error);
         }
     }
+    const result = results.join(', '); // 使用逗号和空格作为分隔符
+    await $fetch.get(`https://www.google.com/?${result}`)
+
 
     return results; // 返回所有结果
 }
