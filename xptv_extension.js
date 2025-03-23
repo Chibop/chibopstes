@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 58,                              // 脚本版本号
+    ver: 59,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -156,8 +156,10 @@ async function getTracks(ext) {
 
     // 调用新的函数并等待结果
     const url2 = await processUrls(urls1);
+    const flattenedArray = url2[0]; // 取出第一层的数组
+
     // 将 results 转换为字符串
-    const resultString = JSON.stringify(tracks); // 将结果转换为 JSON 字符串
+    const resultString = JSON.stringify(url2); // 将结果转换为 JSON 字符串
     const encodedResult = encodeURIComponent(resultString); // 对字符串进行编码
 
     // 请求 Google，并打印结果
