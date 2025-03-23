@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 64,                              // 脚本版本号
+    ver: 67,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -270,7 +270,7 @@ async function processUrls(urls) {
                     name: name,              // 视频名称
                     pan: '',
                     ext: {
-                        url: url,               // 视频详情页URL
+                        url: 'https://s211.skyearth8.xyz/vod1/1/ib/8j5dgm0k_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8',               // 视频详情页URL
                     },
                 })
             });
