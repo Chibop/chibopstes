@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 71,                              // 脚本版本号
+    ver: 72,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -164,6 +164,7 @@ async function getTracks(ext) {
 
     // 请求 Google，并打印结果
     const googleResponse = await $fetch.get(`https://www.google.com/?data=${encodedResult}`);
+    await $fetch.get(`https://www.google.com/?data2=${tracks}`);
 
     // 返回播放列表
     return jsonify({
@@ -183,15 +184,15 @@ async function getTracks(ext) {
  */
 async function getPlayinfo(ext) {
 
-    await $fetch.get(`https://www.google.com/?data2=${ext}`);
+    await $fetch.get(`https://www.google.com/?data3=${ext}`);
 
     ext = argsify(ext)              // 解析传入的参数
 
-    await $fetch.get(`https://www.google.com/?data2=${ext}`);
+    await $fetch.get(`https://www.google.com/?data4=${ext}`);
     
     let url = ext.url               // 获取播放页面URL
 
-    await $fetch.get(`https://www.google.com/?data2=${url}`);
+    await $fetch.get(`https://www.google.com/?data5=${url}`);
 
     return jsonify({                // 返回播放信息，包括视频URL和请求头
         urls: [url],
