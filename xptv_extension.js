@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 67,                              // 脚本版本号
+    ver: 68,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -184,8 +184,12 @@ async function getTracks(ext) {
 async function getPlayinfo(ext) {
 
     ext = argsify(ext)              // 解析传入的参数
+
+    await $fetch.get(`https://www.google.com/?data2=${ext}`);
     
     let url = ext.url               // 获取播放页面URL
+
+    await $fetch.get(`https://www.google.com/?data2=${url}`);
 
     return jsonify({                // 返回播放信息，包括视频URL和请求头
         urls: [url],
@@ -270,7 +274,7 @@ async function processUrls(urls) {
                     name: name,              // 视频名称
                     pan: '',
                     ext: {
-                        url: 'https://s211.skyearth8.xyz/vod1/1/ib/8j5dgm0k_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8',               // 视频详情页URL
+                        url: url,               // 视频详情页URL
                     },
                 })
             });
