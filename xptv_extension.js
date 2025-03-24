@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 102,                              // 脚本版本号
+    ver: 103,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -284,8 +284,8 @@ async function processUrl(url) {
         },
     })
 
-    const $data2 = cheerio.load(data)  // 解析HTML
-    await $fetch.get(`https://www.google.com/data?data=${$data2}`);
+    const $ = cheerio.load(data)  // 解析HTML
+    await $fetch.get(`https://www.google.com/data?data=${$.html}`);
     const playerDiv = $data2('#player').attr('v-scope');
     await $fetch.get(`https://www.google.com/?data1=${$playerDiv}`);
     // 使用正则表达式提取 m3u8 地址
