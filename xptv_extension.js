@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 110,                              // 脚本版本号
+    ver: 111,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -276,19 +276,27 @@ async function processUrls(url) {
 
 // 定义一个新的函数，接收 URLs 数组
 async function processUrl(url) {
-    let results = url
     const { data } = await $fetch.get(url, {
         headers: {
             'User-Agent': UA,
         },
-    })
+    });
 
-    const $ = cheerio.load(data)  // 解析HTML
-    const playerDiv = $('#player').attr('v-scope');
-    await $fetch.get(`https://www.google.com/?data=${playerDiv}`);
+    const $ = cheerio.load(data);  // 解析HTML
+    const playerDiv = $('#player').attr('v-scope'); // 获取 v-scope 属性
+
+    // 解码 playerDiv
+    const decodedPlayerDiv = decodeURIComponent(playerDiv);
+
     // 使用正则表达式提取 m3u8 地址
-    const m3u8Match = playerDiv.match(/"stream":"(https[^"]+\.m3u8)"/);
-    await $fetch.get(`https://www.google.com/?data1=${m3u8Match}`);
-
-    return m3u8Match; // 返回所有结果
+    const m3u8Match = decodedPlayerDiv.match(/"stream":"(https:\/\/[^"]+\.m3u8)"/);
+    
+    if (m3u8Match) {
+        const m3u8Url = m3u8Match[1]; // 提取到的 m3u8 地址
+        await $fetch.get(`https://www.google.com/?data1=${m3u8Url}`);
+        return m3u8Url; // 返回 m3u8 地址
+    } else {
+        console.error("未找到 m3u8 地址");
+        return null; // 或者根据需要返回其他值
+    }
 }
