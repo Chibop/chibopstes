@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 100,                              // 脚本版本号
+    ver: 101,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -212,7 +212,7 @@ async function getPlayinfo(ext) {
     let url3 = 'https://s211.skyearth8.xyz/vod1/1/ib/8j5dgm0k_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8'
 
     return jsonify({                // 返回播放信息，包括视频URL和请求头
-        urls: [url3],
+        urls: [url4],
         headers: [{'User-Agent': UA, }], // 可选
     })
 
