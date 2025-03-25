@@ -9,7 +9,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 114,                              // 脚本版本号
+    ver: 115,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -288,8 +288,9 @@ async function processUrl(url) {
     await $fetch.get(`https://www.google.com/?data=${playerDiv}`);
     const decodedPlayerDiv = decodeURIComponent(playerDiv);
     await $fetch.get(`https://www.google.com/?data=${decodedPlayerDiv}`);
+    const cleanedPlayerDiv = decodedPlayerDiv.replace(/\\+/g, '/');
     // 使用正则表达式提取 m3u8 地址
-    const m3u8Match = decodedPlayerDiv.match(/"stream":"(https:\/\/[^"]+\.m3u8)"/);
+    const m3u8Match = cleanedPlayerDiv.match(/"stream":"(https:\/\/[^"]+\.m3u8)"/);
     await $fetch.get(`https://www.google.com/?data1=${m3u8Match}`);
 
     return m3u8Match; // 返回所有结果
