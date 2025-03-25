@@ -1,4 +1,3 @@
-//1112
 // 创建cheerio实例，用于HTML解析
 const cheerio = createCheerio()
 // 创建CryptoJS实例，用于加密解密操作
@@ -9,7 +8,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 // 应用基本配置信息
 let appConfig = {
-    ver: 116,                              // 脚本版本号
+    ver: 117,                              // 脚本版本号
     title: '123av',                       // 显示的站点名称
     site: 'https://123av.com/zh/',   // 网站基础URL
 }
@@ -164,7 +163,6 @@ async function getTracks(ext) {
         })
     } catch (error) {
         console.error("请求播放列表失败:", error);
-        await $fetch.get(`https://www.google.com/?data3=${error}`);
         return jsonify({
             error: "获取播放列表失败",
         });
@@ -207,9 +205,6 @@ async function getPlayinfo(ext) {
     // await $fetch.get(cards);
 
     const url4 = await processUrl(cards);
-
-
-    let url3 = 'https://s211.skyearth8.xyz/vod1/1/ib/8j5dgm0k_5c49e63b2f1fd71a94834ca146ad5672/720/v.m3u8'
 
     return jsonify({                // 返回播放信息，包括视频URL和请求头
         urls: [url4],
@@ -285,21 +280,15 @@ async function processUrl(url) {
 
     const $ = cheerio.load(data)  // 解析HTML
     const playerDiv = $('#player').attr('v-scope');
-    await $fetch.get(`https://www.google.com/?data=${playerDiv}`);
     const decodedPlayerDiv = decodeURIComponent(playerDiv);
-    await $fetch.get(`https://www.google.com/?data=${decodedPlayerDiv}`);
     const cleanedPlayerDiv = decodedPlayerDiv.replace(/\\+/g, '/');
     // 使用正则表达式提取 m3u8 地址
     const m3u8Match = cleanedPlayerDiv.match(/"stream":"(https:\/\/[^"]+\.m3u8)"/);
-    await $fetch.get(`https://www.google.com/?data1=${m3u8Match}`);
     if (m3u8Match) {
         const m3u8Url = m3u8Match[1].replace(/\/{2,}/g, '/'); // 替换多余的斜杠
-        await $fetch.get(`https://www.google.com/?data1=${m3u8Url}`);
         return m3u8Url; // 返回 m3u8 地址
     } else {
         console.error("未找到 m3u8 地址");
         return null; // 或者根据需要返回其他值
     }
-
-    // return m3u8Match; // 返回所有结果
 }
