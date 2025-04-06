@@ -1,4 +1,4 @@
-//333
+//2.0
 // 创建cheerio实例，用于HTML解析
 const cheerio = createCheerio()
 // 创建CryptoJS实例，用于加密解密操作
@@ -11,7 +11,7 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 let appConfig = {
     ver: 1,                              // 脚本版本号
     title: '廠長',                       // 显示的站点名称
-    site: 'https://www.czzy77.com',   // 网站基础URL
+    site: 'https://www.czzymovie.com',   // 网站基础URL
 }
 
 /**
