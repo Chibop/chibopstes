@@ -1,11 +1,11 @@
-//11121233
+//333
 // 创建cheerio实例，用于HTML解析
 const cheerio = createCheerio()
 // 创建CryptoJS实例，用于加密解密操作
 const CryptoJS = createCryptoJS()
 
 // 设置用户代理，模拟Chrome浏览器访问，避免被网站识别为爬虫
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
 
 // 应用基本配置信息
 let appConfig = {
