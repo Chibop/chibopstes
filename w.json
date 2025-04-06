@@ -5,6 +5,12 @@
             "type": 3,
             "api": "csp_xptv_extension",
             "ext": "https://raw.githubusercontent.com/Chibop/chibopstes/refs/heads/main/xptv_extension.js"
+        },
+        {
+            "name": "czzz",
+            "type": 3,
+            "api": "csp_czzz",
+            "ext": "https://raw.githubusercontent.com/Chibop/chibopstes/refs/heads/main/czzz.js"
         }
     ]
 }
